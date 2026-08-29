@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling>=1.25", "hatch-vcs>=0.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "radioskysims-simulation"
+version = "0.1.0"
+description = "Simulação do RadioSkySim: TOD, simulação, noise, RFI, mapmaking, orchestrators e processamento ciente de recursos."
+readme = "README.md"
+requires-python = ">=3.11,<=3.14"
+authors = [
+  { name = "Luciano Barosi", email = "lbarosi@df.ufcg.edu.br" },
+]
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering",
+]
+dependencies = [
+  "numpy>=2.3",
+  "astropy>=7.1",
+  "xarray>=2022.3.1",
+  "dask>=2025.5.1",
+  "pydantic>=2",
+  "sqlmodel>=0.0.24",
+  "healpy>=1.17",
+  "panel>=1.7.0",
+  "holoviews>=1.20.2",
+  "hvplot>=0.10",
+  "radioskysims-core",
+  "radioskysims-viz",
+  "radioskysims-beam",
+  "radioskysims-skymap",
+  "radioskysims-sources",
+  "radioskysims-radiotelescope",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+]
+
+[project.urls]
+Homepage = "https://github.com/barosil/RadioSkySim"
+"Bug Tracker" = "https://github.com/barosil/RadioSkySim/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/radioskysims_simulation"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = ["-ra", "--strict-markers", "--strict-config"]
+xfail_strict = true
+filterwarnings = [
+  "error",
+  "ignore::pytest.PytestUnraisableExceptionWarning",
+  "ignore:numpy.ndarray size changed:RuntimeWarning",
+]
+markers = [
+  "performance: testes de desempenho (rode com -m performance)",
+]
+testpaths = ["tests"]
