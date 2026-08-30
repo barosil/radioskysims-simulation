@@ -23,7 +23,8 @@ class MapMakingResultSet:
 
     def __post_init__(self) -> None:
         if not self.results:
-            raise ValueError("MapMakingResultSet requires at least one result.")
+            msg = "MapMakingResultSet requires at least one result."
+            raise ValueError(msg)
 
     @property
     def maps(self):
@@ -59,7 +60,8 @@ class GenerateSkyMapsFromTODUseCase:
         frame: str = "equatorial",
     ) -> MapMakingResultSet:
         if "frequency" not in tod.coords:
-            raise ValueError("TOD dataset must contain frequency coordinates.")
+            msg = "TOD dataset must contain frequency coordinates."
+            raise ValueError(msg)
 
         frequencies = np.asarray(
             tod.coords["frequency"].values,
@@ -67,10 +69,12 @@ class GenerateSkyMapsFromTODUseCase:
         )
 
         if frequencies.ndim != 1:
-            raise ValueError("TOD frequency coordinate must be one-dimensional.")
+            msg = "TOD frequency coordinate must be one-dimensional."
+            raise ValueError(msg)
 
         if frequencies.size == 0:
-            raise ValueError("TOD must contain at least one frequency channel.")
+            msg = "TOD must contain at least one frequency channel."
+            raise ValueError(msg)
 
         results: list[MapMakingResult] = []
 

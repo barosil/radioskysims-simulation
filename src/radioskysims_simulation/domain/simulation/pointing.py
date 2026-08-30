@@ -64,6 +64,8 @@ def build_pointing_track(
             - az (rad): azimute (constante, rad).
         Dimensão: (time,).
     """
+    _ = n_samples  # reservado: amostragem explícita do pointing
+
     # Import skyfield sob demanda (dependência opcional)
     import skyfield.api as sf
 
@@ -81,7 +83,7 @@ def build_pointing_track(
 
     # Cria um earth-satellite dummy no centro da Terra para
     # obter o referencial geocêntrico
-    ts = sf.load.timescale()
+    sf.load.timescale()
     # Melhor: criar um observador e usar from_altaz diretamente
     observer_pos = obs_geo.at(times_sf)
 

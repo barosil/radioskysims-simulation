@@ -895,10 +895,13 @@ class SimulationResult:
             try:
                 path_p.unlink()
             except OSError as exc:
-                raise OSError(
+                msg = (
                     f"Não foi possível remover {path_p} para regravar. "
                     "Feche o arquivo em outros processos/kernels e tente de novo: "
                     f"{exc}"
+                )
+                raise OSError(
+                    msg
                 ) from exc
 
         result = self.select_source_type(source_type) if source_type is not None else self
@@ -1066,6 +1069,7 @@ class Simulation:
         signal_factory: object | None = None,
         satellites: Iterable | None = None,
     ) -> None:
+        _ = (geometry, signal_factory)  # legado, mantido p/ compatibilidade
         # Se context foi fornecido, extrai parâmetros dele
         if context is not None:
             ctx_sources = getattr(context, "sources", None)

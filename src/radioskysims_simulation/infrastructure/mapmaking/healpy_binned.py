@@ -41,19 +41,24 @@ class HealpyBinnedMapMakerAdapter(MapMakerPort):
             nside,
             nest=True,
         ):
-            raise ValueError(f"Invalid HEALPix nside: {nside}")
+            msg = f"Invalid HEALPix nside: {nside}"
+            raise ValueError(msg)
 
         if "T_antenna" not in tod:
-            raise ValueError("TOD dataset must contain 'T_antenna'.")
+            msg = "TOD dataset must contain 'T_antenna'."
+            raise ValueError(msg)
 
         if "frequency" not in tod.coords:
-            raise ValueError("TOD dataset must contain frequency coordinates.")
+            msg = "TOD dataset must contain frequency coordinates."
+            raise ValueError(msg)
 
         if "ra" not in pointing_track:
-            raise ValueError("pointing_track must contain 'ra'.")
+            msg = "pointing_track must contain 'ra'."
+            raise ValueError(msg)
 
         if "dec" not in pointing_track:
-            raise ValueError("pointing_track must contain 'dec'.")
+            msg = "pointing_track must contain 'dec'."
+            raise ValueError(msg)
 
         temperature = tod["T_antenna"].sel(
             frequency=frequency_hz,
@@ -63,7 +68,8 @@ class HealpyBinnedMapMakerAdapter(MapMakerPort):
         temperature = temperature.squeeze()
 
         if temperature.dims != ("time",):
-            raise ValueError("Selected TOD channel must have only the 'time' dimension.")
+            msg = "Selected TOD channel must have only the 'time' dimension."
+            raise ValueError(msg)
 
         ra_values = np.asarray(
             pointing_track["ra"].values,
@@ -111,10 +117,12 @@ class HealpyBinnedMapMakerAdapter(MapMakerPort):
         )
 
         if ra.shape != dec.shape or ra.shape != values.shape:
-            raise ValueError("TOD and pointing time dimensions must match.")
+            msg = "TOD and pointing time dimensions must match."
+            raise ValueError(msg)
 
         if not np.all(np.isfinite(values)):
-            raise ValueError("TOD contains non-finite temperatures.")
+            msg = "TOD contains non-finite temperatures."
+            raise ValueError(msg)
 
         # HEALPix recebe coordenadas angulares em radianos.
         theta = np.pi / 2.0 - dec

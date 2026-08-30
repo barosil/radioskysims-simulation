@@ -10,23 +10,23 @@ import dask.array as da
 import numpy as np
 import xarray as xr
 from dask import delayed
-
-from radioskysims_sources.application.services.satellite_service import SatelliteService
-from radioskysims_sources.application.services.source_assembler import SourceAssembler
 from radioskysims_beam.domain.beam import Beam, BeamOps
 from radioskysims_core.domain.common import FrequencyRange, Observer, TimeRange
 from radioskysims_core.domain.geometry import GeometryProvider
+from radioskysims_core.domain.tracks.factory import TrackFactory
 from radioskysims_radiotelescope.domain.radiotelescope.antenna.models import Antenna
 from radioskysims_radiotelescope.domain.radiotelescope.specs import RadiotelescopeSpec
+from radioskysims_sources.application.services.satellite_service import SatelliteService
+from radioskysims_sources.application.services.source_assembler import SourceAssembler
 from radioskysims_sources.domain.satellite import Satellite, SatelliteAssembled
 from radioskysims_sources.domain.signal import SignalFactory
 from radioskysims_sources.domain.signal_source import (
     SatelliteSignalSource,
     SignalSource,
 )
+
 from radioskysims_simulation.domain.simulation import Simulation, SimulationResult
 from radioskysims_simulation.domain.tod import TODSimulator
-from radioskysims_core.domain.tracks.factory import TrackFactory
 
 T = TypeVar("T")
 
@@ -124,12 +124,15 @@ class SimulationService:
             Exception: Propaga exceções da função
         """
         try:
-            self._logger.info(f"{operation}_start", **start_fields)
+            log_msg = f"{operation}_start"
+            self._logger.info(log_msg, **start_fields)
             result = fn()
-            self._logger.info(f"{operation}_success", **success_fields)
+            log_msg = f"{operation}_success"
+            self._logger.info(log_msg, **success_fields)
             return result
         except Exception:
-            self._logger.exception(f"{operation}_failed")
+            log_msg = f"{operation}_failed"
+            self._logger.exception(log_msg)
             raise
 
     # ------------------------------------------------------------------
@@ -376,7 +379,8 @@ class SimulationService:
         has_requested_source = bool(satellites)
 
         if not has_requested_source:
-            raise ValueError("No sources selected for simulation.")
+            msg = "No sources selected for simulation."
+            raise ValueError(msg)
 
         # Ensure signal definitions exist in the DB when the repository supports it.
         try:
@@ -409,8 +413,9 @@ class SimulationService:
 
         if not self._satellites_are_assembled(satellites):
             if observer is None:
+                msg = "Observer is required to assemble satellites for TOD."
                 raise ValueError(
-                    "Observer is required to assemble satellites for TOD.",
+                    msg,
                 )
             satellites = self._assemble_satellites(
                 satellites=satellites,
@@ -540,7 +545,8 @@ class SimulationService:
         has_requested_source = bool(satellites or include_local_sources or include_radio_sources)
 
         if not has_requested_source:
-            raise ValueError("No sources selected for simulation.")
+            msg = "No sources selected for simulation."
+            raise ValueError(msg)
         try:
             sig_repo = getattr(self._signal_factory, "signal_repo", None)
             init = getattr(sig_repo, "initialize_signals", None)
@@ -571,8 +577,9 @@ class SimulationService:
         # 1. Monta satélites
         if not self._satellites_are_assembled(satellites):
             if observer is None:
+                msg = "Observer is required to assemble satellites for TOD."
                 raise ValueError(
-                    "Observer is required to assemble satellites for TOD.",
+                    msg,
                 )
             satellites = self._assemble_satellites(
                 satellites=satellites,
@@ -693,15 +700,17 @@ class SimulationService:
 
     def _load_telescope_from_settings(self, telescope: str) -> RadiotelescopeSpec:
         if self._telescope_loader is None:
+            msg = "SimulationService telescope_loader is not configured."
             raise RuntimeError(
-                "SimulationService telescope_loader is not configured.",
+                msg,
             )
         return self._telescope_loader(telescope)
 
     def _load_beam_from_file(self, file_path: str) -> Beam:
         if self._beam_loader_factory is None:
+            msg = "SimulationService beam_loader_factory is not configured."
             raise RuntimeError(
-                "SimulationService beam_loader_factory is not configured.",
+                msg,
             )
         return self._beam_loader_factory(file_path)
 
@@ -810,7 +819,8 @@ class SimulationService:
             )
 
         if not assembled:
-            raise ValueError("No satellites could be assembled for TOD.")
+            msg = "No satellites could be assembled for TOD."
+            raise ValueError(msg)
 
         return assembled
 
@@ -848,7 +858,8 @@ class SimulationService:
             )
 
         if not normalized:
-            raise ValueError("No satellites with orbital elements for assembly.")
+            msg = "No satellites with orbital elements for assembly."
+            raise ValueError(msg)
 
         return normalized
 

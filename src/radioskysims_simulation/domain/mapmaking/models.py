@@ -42,22 +42,28 @@ class MapMakingResult:
         )
 
         if hit_map.ndim != 1:
-            raise ValueError("hit_map must be a 1D HEALPix array.")
+            msg = "hit_map must be a 1D HEALPix array."
+            raise ValueError(msg)
 
         if observed_mask.ndim != 1:
-            raise ValueError("observed_mask must be a 1D array.")
+            msg = "observed_mask must be a 1D array."
+            raise ValueError(msg)
 
         if hit_map.shape != (self.skymap.npix,):
-            raise ValueError("hit_map size must match SkyMap npix.")
+            msg = "hit_map size must match SkyMap npix."
+            raise ValueError(msg)
 
         if observed_mask.shape != (self.skymap.npix,):
-            raise ValueError("observed_mask size must match SkyMap npix.")
+            msg = "observed_mask size must match SkyMap npix."
+            raise ValueError(msg)
 
         if np.any(hit_map < 0):
-            raise ValueError("hit_map cannot contain negative values.")
+            msg = "hit_map cannot contain negative values."
+            raise ValueError(msg)
 
         if self.n_samples <= 0:
-            raise ValueError("n_samples must be positive.")
+            msg = "n_samples must be positive."
+            raise ValueError(msg)
 
         expected_mask = hit_map > 0
 
@@ -65,7 +71,8 @@ class MapMakingResult:
             observed_mask,
             expected_mask,
         ):
-            raise ValueError("observed_mask must be equivalent to hit_map > 0.")
+            msg = "observed_mask must be equivalent to hit_map > 0."
+            raise ValueError(msg)
 
         object.__setattr__(
             self,

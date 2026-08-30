@@ -67,7 +67,8 @@ class MapMakingService:
 
         if persist:
             if self._repository is None:
-                raise RuntimeError("MapMakingService requires a repository when persist=True.")
+                msg = "MapMakingService requires a repository when persist=True."
+                raise RuntimeError(msg)
 
             for index, result in enumerate(result_set.results):
                 frequency_ghz = result.skymap.freq_ghz

@@ -42,7 +42,8 @@ class TODOrchestrator:
         source_list = list(sources)
 
         if not source_list:
-            raise ValueError("run_sources requires at least one source.")
+            msg = "run_sources requires at least one source."
+            raise ValueError(msg)
 
         datasets: list[xr.Dataset] = []
 
@@ -109,7 +110,8 @@ class TODOrchestrator:
         map_list = list(maps)
 
         if not map_list:
-            raise ValueError("run_maps requires at least one SkyMap.")
+            msg = "run_maps requires at least one SkyMap."
+            raise ValueError(msg)
 
         return self._simulator.simulate_from_maps(
             maps=map_list,
@@ -140,7 +142,8 @@ class TODOrchestrator:
         map_list = list(maps) if maps is not None else []
 
         if not source_list and not map_list:
-            raise ValueError("TODOrchestrator requires sources, maps, or both.")
+            msg = "TODOrchestrator requires sources, maps, or both."
+            raise ValueError(msg)
 
         source_tod: xr.Dataset | None = None
         map_tod: xr.Dataset | None = None
@@ -160,10 +163,12 @@ class TODOrchestrator:
         # --------------------------------------------------
         if map_list:
             if pointing_track is None:
-                raise ValueError("pointing_track is required when maps are provided.")
+                msg = "pointing_track is required when maps are provided."
+                raise ValueError(msg)
 
             if projector is None:
-                raise ValueError("projector is required when maps are provided.")
+                msg = "projector is required when maps are provided."
+                raise ValueError(msg)
 
             map_tod = self.run_maps(
                 maps=map_list,
@@ -274,7 +279,8 @@ class TODOrchestrator:
         datasets = list(map_tods)
 
         if not datasets:
-            raise ValueError("combine_maps requires at least one map TOD.")
+            msg = "combine_maps requires at least one map TOD."
+            raise ValueError(msg)
 
         temperature = datasets[0]["T_antenna"]
         power = datasets[0]["power"]

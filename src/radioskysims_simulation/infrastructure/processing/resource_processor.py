@@ -558,11 +558,14 @@ class ResourceAwareProcessor(Generic[T]):
         )
 
         if single_mb > self.max_batch_mb:
-            raise ResourceLimitError(
+            msg = (
                 f"Cada fonte requer ~{single_mb:.0f} MB, mas o limite "
                 f"do batch é {self.max_batch_mb:.0f} MB. Considere reduzir "
                 "a resolução temporal, o número de canais ou o tempo de "
                 "simulação."
+            )
+            raise ResourceLimitError(
+                msg
             )
 
         # Agrupa fontes em batches
@@ -930,7 +933,8 @@ class ResourceAwareProcessor(Generic[T]):
                     str(r.error) for r in self._batch_results if r.error is not None
                 ]
                 _detail = "; ".join(_errs[:3]) if _errs else "sem detalhes"
-                raise RuntimeError(f"Todos os batches falharam: {_detail}")
+                msg = f"Todos os batches falharam: {_detail}"
+                raise RuntimeError(msg)
 
             self._log.info(
                 "consolidating_results",

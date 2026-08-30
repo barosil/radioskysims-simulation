@@ -64,22 +64,26 @@ class MapMakingRepository(MapMakingRepositoryPort):
         if self._engine is not None:
             return self._engine.session()
 
-        raise RuntimeError("MapMakingRepository requires engine or session_factory.")
+        msg = "MapMakingRepository requires engine or session_factory."
+        raise RuntimeError(msg)
 
     @staticmethod
     def _validate_key(
         key: str,
     ) -> str:
         if not isinstance(key, str):
-            raise TypeError("MapMaking repository key must be a string.")
+            msg = "MapMaking repository key must be a string."
+            raise TypeError(msg)
 
         normalized = key.strip()
 
         if not normalized:
-            raise ValueError("MapMaking repository key cannot be empty.")
+            msg = "MapMaking repository key cannot be empty."
+            raise ValueError(msg)
 
         if "/" in normalized or "\\" in normalized or ".." in normalized:
-            raise ValueError("MapMaking repository key must not contain path separators or '..'.")
+            msg = "MapMaking repository key must not contain path separators or '..'."
+            raise ValueError(msg)
 
         return normalized
 
@@ -103,12 +107,14 @@ class MapMakingRepository(MapMakingRepositoryPort):
             result,
             MapMakingResult,
         ):
-            raise TypeError("result must be a MapMakingResult.")
+            msg = "result must be a MapMakingResult."
+            raise TypeError(msg)
 
         path = self._path_for_key(key)
 
         if path.exists() and not overwrite:
-            raise FileExistsError(f"MapMaking result already exists: {path}")
+            msg = f"MapMaking result already exists: {path}"
+            raise FileExistsError(msg)
 
         temporary_path = path.with_suffix(".h5.tmp")
 
@@ -179,7 +185,8 @@ class MapMakingRepository(MapMakingRepositoryPort):
             session.refresh(row)
 
         if row.id is None:
-            raise RuntimeError("MapMakingRecord was not assigned an id.")
+            msg = "MapMakingRecord was not assigned an id."
+            raise RuntimeError(msg)
 
         return int(row.id)
 
@@ -199,7 +206,8 @@ class MapMakingRepository(MapMakingRepositoryPort):
         path = Path(row.filepath)
 
         if not path.exists():
-            raise FileNotFoundError(f"MapMaking HDF5 file not found: {path}")
+            msg = f"MapMaking HDF5 file not found: {path}"
+            raise FileNotFoundError(msg)
 
         with h5py.File(
             path,

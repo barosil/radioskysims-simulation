@@ -94,9 +94,12 @@ class TODSimulator:
         )
 
         if not callable(normalized) or not callable(evaluate):
-            raise TypeError(
+            msg = (
                 "beam deve fornecer um atributo 'dataset' ou implementar "
                 "os métodos normalized() e evaluate()."
+            )
+            raise TypeError(
+                msg
             )
 
         normalized_beam = normalized(
@@ -104,7 +107,8 @@ class TODSimulator:
         )
 
         if normalized_beam is None:
-            raise TypeError("beam.normalized() deve retornar um objeto de feixe.")
+            msg = "beam.normalized() deve retornar um objeto de feixe."
+            raise TypeError(msg)
 
         if not callable(
             getattr(
@@ -113,7 +117,8 @@ class TODSimulator:
                 None,
             )
         ):
-            raise TypeError("O feixe normalizado deve implementar evaluate().")
+            msg = "O feixe normalizado deve implementar evaluate()."
+            raise TypeError(msg)
 
         return normalized_beam
 
@@ -151,15 +156,18 @@ class TODSimulator:
             return None
 
         if "amplitude" not in beam_dataset:
-            raise ValueError("Beam dataset must contain 'amplitude' to compute FWHM.")
+            msg = "Beam dataset must contain 'amplitude' to compute FWHM."
+            raise ValueError(msg)
 
         if "frequency" not in beam_dataset.coords:
-            raise ValueError("Beam dataset must contain a frequency coordinate.")
+            msg = "Beam dataset must contain a frequency coordinate."
+            raise ValueError(msg)
 
         properties = BeamProperties.compute_properties(beam_dataset)
 
         if "fwhm" not in properties:
-            raise ValueError("BeamProperties did not produce FWHM.")
+            msg = "BeamProperties did not produce FWHM."
+            raise ValueError(msg)
 
         fwhm = properties["fwhm"]
 
@@ -173,7 +181,8 @@ class TODSimulator:
 
         # Ensure canonical frequency-only ordering.
         if "frequency" not in fwhm.dims:
-            raise ValueError("Beam FWHM must depend on frequency.")
+            msg = "Beam FWHM must depend on frequency."
+            raise ValueError(msg)
 
         fwhm = fwhm.transpose(
             "frequency",
@@ -251,7 +260,8 @@ class TODSimulator:
             "mean",
             "separate",
         }:
-            raise ValueError("combine_polarization must be one of: sum, mean, separate.")
+            msg = "combine_polarization must be one of: sum, mean, separate."
+            raise ValueError(msg)
 
         # --------------------------------------------------
         # Satellite/source inputs
@@ -274,17 +284,23 @@ class TODSimulator:
         )
 
         if signal_units not in (_TOTAL_POWER_UNITS | _FLUX_DENSITY_UNITS):
-            raise ValueError(
+            msg = (
                 "Signal units must be 'W/Hz' (total power) or "
                 "'W/m²/Hz' (flux density); got "
                 f"{signal_units!r}"
             )
+            raise ValueError(
+                msg
+            )
 
         if self.beam is None:
-            raise ValueError(
+            msg = (
                 "TODSimulator requer beam configurado antes de simulate(). "
                 "Forneça um beam no construtor ou injete em "
                 "`simulator.beam`."
+            )
+            raise ValueError(
+                msg
             )
 
         evaluate = getattr(
@@ -294,7 +310,8 @@ class TODSimulator:
         )
 
         if not callable(evaluate):
-            raise TypeError("O beam configurado deve implementar evaluate().")
+            msg = "O beam configurado deve implementar evaluate()."
+            raise TypeError(msg)
 
         # --------------------------------------------------
         # Beam metadata and polarization
@@ -326,8 +343,9 @@ class TODSimulator:
             )
 
             if "polarization" not in beam_coordinates:
+                msg = "Beam dataset declares polarization dimension without polarization coordinates."
                 raise ValueError(
-                    "Beam dataset declares polarization dimension without polarization coordinates."
+                    msg
                 )
 
             polarizations = np.asarray(beam_coordinates["polarization"].values)
@@ -365,12 +383,14 @@ class TODSimulator:
             }
 
             if not required_dimensions.issubset(mueller.dims):
-                raise ValueError("Mueller matrix must have dims ('polarization', 'stokes').")
+                msg = "Mueller matrix must have dims ('polarization', 'stokes')."
+                raise ValueError(msg)
 
             stokes_coordinate = mueller.coords.get("stokes")
 
             if stokes_coordinate is None or "I" not in stokes_coordinate.values:
-                raise ValueError("Mueller matrix must include stokes='I'.")
+                msg = "Mueller matrix must include stokes='I'."
+                raise ValueError(msg)
 
             mueller_i = mueller.sel(
                 stokes="I",
@@ -410,17 +430,23 @@ class TODSimulator:
             flux_at_observer = psd_polarized
 
         else:  # pragma: no cover - já validado no contrato
-            raise ValueError(
+            msg = (
                 "Unrecognized signal units for T_antenna: "
                 f"{signal_units!r}. Use 'W/Hz' "
                 "(total power) or 'W/m²/Hz' "
                 "(flux density)."
             )
+            raise ValueError(
+                msg
+            )
 
         if self.effective_area_m2 is None:
-            raise ValueError(
+            msg = (
                 "effective_area_m2 must be provided for absolute radiometric "
                 "conversion of discrete-source flux density to antenna temperature."
+            )
+            raise ValueError(
+                msg
             )
 
         # Fonte não polarizada observada em uma polarização instrumental:
@@ -592,13 +618,15 @@ class TODSimulator:
         # Contract checks
         # --------------------------------------------------
         if not maps:
-            raise ValueError("simulate_from_maps requires at least one SkyMap.")
+            msg = "simulate_from_maps requires at least one SkyMap."
+            raise ValueError(msg)
 
         if not isinstance(
             pointing_track,
             xr.Dataset,
         ):
-            raise TypeError("pointing_track must be an xarray.Dataset.")
+            msg = "pointing_track must be an xarray.Dataset."
+            raise TypeError(msg)
 
         required_pointing = {
             "ra",
@@ -608,12 +636,14 @@ class TODSimulator:
         missing_pointing = required_pointing - set(pointing_track.data_vars)
 
         if missing_pointing:
+            msg = f"pointing_track must contain 'ra' and 'dec'; missing: {sorted(missing_pointing)}."
             raise ValueError(
-                f"pointing_track must contain 'ra' and 'dec'; missing: {sorted(missing_pointing)}."
+                msg
             )
 
         if "time" not in pointing_track.coords:
-            raise ValueError("pointing_track must contain a time coordinate.")
+            msg = "pointing_track must contain a time coordinate."
+            raise ValueError(msg)
 
         project = getattr(
             projector,
@@ -622,7 +652,8 @@ class TODSimulator:
         )
 
         if not callable(project):
-            raise TypeError("projector must implement project().")
+            msg = "projector must implement project()."
+            raise TypeError(msg)
 
         resolved_fwhm_input: float | xr.DataArray | None = fwhm_deg
 
@@ -643,12 +674,14 @@ class TODSimulator:
             )
 
             if freq_ghz is None:
-                raise ValueError("Each SkyMap must define freq_ghz.")
+                msg = "Each SkyMap must define freq_ghz."
+                raise ValueError(msg)
 
             freq_ghz = float(freq_ghz)
 
             if not np.isfinite(freq_ghz) or freq_ghz <= 0:
-                raise ValueError("SkyMap freq_ghz must be a positive finite value.")
+                msg = "SkyMap freq_ghz must be a positive finite value."
+                raise ValueError(msg)
 
             freq_hz = freq_ghz * 1.0e9
 
@@ -663,7 +696,8 @@ class TODSimulator:
                     xr.DataArray,
                 ):
                     if "frequency" not in resolved_fwhm_input.coords:
-                        raise ValueError("fwhm_deg DataArray must have a frequency coordinate.")
+                        msg = "fwhm_deg DataArray must have a frequency coordinate."
+                        raise ValueError(msg)
 
                     beam_frequency = resolved_fwhm_input.coords["frequency"]
                     beam_units = str(
@@ -708,7 +742,8 @@ class TODSimulator:
                     resolved_fwhm_deg = float(resolved_fwhm_input)
 
                 if not np.isfinite(resolved_fwhm_deg) or resolved_fwhm_deg <= 0:
-                    raise ValueError("Resolved beam FWHM must be a positive finite value.")
+                    msg = "Resolved beam FWHM must be a positive finite value."
+                    raise ValueError(msg)
 
             resolved_fwhm_rad = (
                 np.deg2rad(resolved_fwhm_deg) if resolved_fwhm_deg is not None else None
@@ -727,10 +762,12 @@ class TODSimulator:
                 sky_temperature,
                 xr.DataArray,
             ):
-                raise TypeError("projector.project() must return an xarray.DataArray.")
+                msg = "projector.project() must return an xarray.DataArray."
+                raise TypeError(msg)
 
             if "time" not in sky_temperature.dims:
-                raise ValueError("Projected SkyMap must contain the time dimension.")
+                msg = "Projected SkyMap must contain the time dimension."
+                raise ValueError(msg)
 
             # --------------------------------------------------
             # Sky temperature unit -> Kelvin
@@ -750,9 +787,12 @@ class TODSimulator:
                 temperature_k = sky_temperature
 
             else:
-                raise ValueError(
+                msg = (
                     f"Unsupported SkyMap temperature unit {map_unit!r}. "
                     "Expected 'uK', 'uK_CMB' or 'K'."
+                )
+                raise ValueError(
+                    msg
                 )
 
             # --------------------------------------------------

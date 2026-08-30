@@ -35,17 +35,20 @@ class HealpySkyMapTODProjector(SkyMapTODProjector):
         fwhm_rad: float | None = None,
     ) -> xr.DataArray:
         if not isinstance(skymap, SkyMap):
-            raise TypeError("skymap must be a SkyMap.")
+            msg = "skymap must be a SkyMap."
+            raise TypeError(msg)
 
         if not isinstance(pointing_track, xr.Dataset):
-            raise TypeError("pointing_track must be an xarray.Dataset.")
+            msg = "pointing_track must be an xarray.Dataset."
+            raise TypeError(msg)
 
         required = {"ra", "dec"}
         missing = required - set(pointing_track.data_vars)
 
         if missing:
+            msg = f"pointing_track must contain RA/Dec variables; missing: {sorted(missing)}."
             raise ValueError(
-                f"pointing_track must contain RA/Dec variables; missing: {sorted(missing)}."
+                msg
             )
 
         ra_values = np.asarray(
@@ -76,17 +79,20 @@ class HealpySkyMapTODProjector(SkyMapTODProjector):
         elif ra_unit in {"rad", "radian", "radians"}:
             ra_rad = ra_values
         else:
-            raise ValueError(f"Unsupported RA unit in pointing_track: {ra_unit!r}.")
+            msg = f"Unsupported RA unit in pointing_track: {ra_unit!r}."
+            raise ValueError(msg)
 
         if dec_unit in {"deg", "degree", "degrees"}:
             dec_rad = np.deg2rad(dec_values)
         elif dec_unit in {"rad", "radian", "radians"}:
             dec_rad = dec_values
         else:
-            raise ValueError(f"Unsupported Dec unit in pointing_track: {dec_unit!r}.")
+            msg = f"Unsupported Dec unit in pointing_track: {dec_unit!r}."
+            raise ValueError(msg)
 
         if ra_rad.shape != dec_rad.shape:
-            raise ValueError("pointing_track RA and Dec must have the same shape.")
+            msg = "pointing_track RA and Dec must have the same shape."
+            raise ValueError(msg)
 
         map_data = np.asarray(
             skymap.data,
@@ -98,7 +104,8 @@ class HealpySkyMapTODProjector(SkyMapTODProjector):
         # --------------------------------------------------------------
         if fwhm_rad is not None:
             if fwhm_rad <= 0:
-                raise ValueError("fwhm_rad must be positive.")
+                msg = "fwhm_rad must be positive."
+                raise ValueError(msg)
 
             # A convolução de um campo estritamente constante com um beam
             # normalizado preserva exatamente o valor do campo.
@@ -150,10 +157,13 @@ class HealpySkyMapTODProjector(SkyMapTODProjector):
             phi_map = phi_equatorial
 
         else:
-            raise ValueError(
+            msg = (
                 "SkyMap TOD projection currently supports "
                 "'galactic' and 'equatorial' frames; "
                 f"received {skymap.frame!r}."
+            )
+            raise ValueError(
+                msg
             )
 
         # --------------------------------------------------------------

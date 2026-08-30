@@ -291,9 +291,11 @@ class SimulationRepository(SimulationRepositoryPort):
         não carrega datasets persistidos (HDF5/Zarr).
         """
         if limit <= 0:
-            raise ValueError("limit deve ser > 0")
+            msg = "limit deve ser > 0"
+            raise ValueError(msg)
         if offset < 0:
-            raise ValueError("offset deve ser >= 0")
+            msg = "offset deve ser >= 0"
+            raise ValueError(msg)
 
         created_from_dt = self._coerce_datetime_filter(created_from)
         created_to_dt = self._coerce_datetime_filter(created_to)

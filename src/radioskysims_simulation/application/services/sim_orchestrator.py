@@ -7,7 +7,17 @@ from typing import Any
 
 import numpy as np
 import xarray as xr
-
+from radioskysims_core.config.config_loader import radio_min_flux_jy
+from radioskysims_core.domain.common import (
+    FrequencyRange,
+    Observer,
+    TimeRange,
+)
+from radioskysims_core.domain.geometry import (
+    SkyfieldGeometryProvider,
+    compute_pointing_track,
+)
+from radioskysims_core.domain.tracks.factory import TrackFactory
 from radioskysims_sources.application.ports.satellite import SatelliteRepositoryPort
 from radioskysims_sources.application.services.catalog_services import (
     RadioSourceCatalogService,
@@ -18,23 +28,6 @@ from radioskysims_sources.application.services.local_sources_service import (
 from radioskysims_sources.application.services.satellite_service import (
     SatelliteService,
 )
-from radioskysims_simulation.application.services.simulation_service import (
-    SimulationService,
-    _compute_freq_mhz,
-    _compute_time_grid,
-)
-from radioskysims_simulation.application.services.tod_orchestrator import (
-    TODOrchestrator,
-)
-from radioskysims_core.domain.common import (
-    FrequencyRange,
-    Observer,
-    TimeRange,
-)
-from radioskysims_core.domain.geometry import (
-    SkyfieldGeometryProvider,
-    compute_pointing_track,
-)
 from radioskysims_sources.domain.radiosources.continuum import (
     Galaxy,
     NeutralHydrogen,
@@ -43,13 +36,20 @@ from radioskysims_sources.domain.signal import (
     SignalFactory,
     SignalRepositoryPort,
 )
+
+from radioskysims_simulation.application.services.simulation_service import (
+    SimulationService,
+    _compute_freq_mhz,
+    _compute_time_grid,
+)
+from radioskysims_simulation.application.services.tod_orchestrator import (
+    TODOrchestrator,
+)
 from radioskysims_simulation.domain.simulation import (
     SimulationOrchestratorResult,
     SimulationResult,
 )
 from radioskysims_simulation.domain.tod import TODSimulator
-from radioskysims_core.domain.tracks.factory import TrackFactory
-from radioskysims_core.config.config_loader import radio_min_flux_jy
 from radioskysims_simulation.infrastructure.processing.resource_processor import (
     ProcessingResources,
     ResourceAwareProcessor,
@@ -199,57 +199,6 @@ class SimOrchestrator:
 
         self._neutral_hydrogen_maps_cache: tuple[Any, ...] | None = None
 
-    @property
-    def context(
-        self,
-    ) -> SimulationContext:
-        """Contexto interno com todos os componentes da simulação."""
-
-        return self._ctx
-
-    @property
-    def simulation_repository(
-        self,
-    ) -> Any | None:
-        """Repositório de simulações para persistência dos resumos."""
-
-        return getattr(
-            self._ctx,
-            "simulation_repository",
-            None,
-        )
-
-    def save_result(
-        self,
-        result: Any,
-        *,
-        filepath: str | None = None,
-        saved: bool = False,
-        registered: bool = True,
-    ) -> int:
-        """Persiste o resumo de uma simulação no banco."""
-
-        repo = self.simulation_repository
-
-        if repo is None:
-            raise RuntimeError("SimulationRepository não configurado no SimulationContext.")
-
-        return repo.save(
-            result,
-            filepath=filepath,
-            saved=saved,
-            registered=registered,
-        )
-
-    def shutdown(
-        self,
-    ) -> None:
-        """Encerra recursos associados ao processor."""
-
-        if self._processor is not None:
-            self._processor.shutdown()
-            self._processor = None
-
     def _generate_galaxy_maps(
         self,
         *,
@@ -279,7 +228,8 @@ class SimOrchestrator:
         """
 
         if self._galaxy_map_generator is None:
-            raise RuntimeError("Galaxy map generator is not configured.")
+            msg = "Galaxy map generator is not configured."
+            raise RuntimeError(msg)
 
         galaxy = Galaxy()
 
@@ -320,16 +270,20 @@ class SimOrchestrator:
         """
 
         if self._tod_orchestrator is None:
-            raise RuntimeError("TODOrchestrator is not configured.")
+            msg = "TODOrchestrator is not configured."
+            raise RuntimeError(msg)
 
         if self._skymap_tod_projector is None:
-            raise RuntimeError("SkyMap TOD projector is not configured.")
+            msg = "SkyMap TOD projector is not configured."
+            raise RuntimeError(msg)
 
         if alt_deg is None or az_deg is None:
-            raise ValueError("Galaxy TOD requires antenna Alt/Az pointing.")
+            msg = "Galaxy TOD requires antenna Alt/Az pointing."
+            raise ValueError(msg)
 
         if not maps:
-            raise ValueError("Galaxy TOD requires at least one SkyMap.")
+            msg = "Galaxy TOD requires at least one SkyMap."
+            raise ValueError(msg)
 
         time_grid = _compute_time_grid(time_range)
 
@@ -523,9 +477,7 @@ class SimOrchestrator:
         """
         from radioskysims_simulation.bootstrap.composition import create_simulation_context
 
-        ctx = create_simulation_context(
-            telescope=telescope, settings_file=settings_file
-        )
+        ctx = create_simulation_context(telescope=telescope, settings_file=settings_file)
         return cls(ctx)
 
     # ------------------------------------------------------------------
@@ -988,6 +940,7 @@ class SimOrchestrator:
                         memory_mb=memory_mb,
                         dask_scheduler=dask_scheduler,
                         dask_processes=dask_processes,
+                        batch_output_dir=batch_output_dir,
                         processor_diagnostics=processor_diagnostics,
                     )
 
@@ -1054,7 +1007,8 @@ class SimOrchestrator:
 
             elif len(diffuse_tods) > 1:
                 if self._tod_orchestrator is None:
-                    raise RuntimeError("TODOrchestrator is not configured.")
+                    msg = "TODOrchestrator is not configured."
+                    raise RuntimeError(msg)
 
                 diffuse_tod = self._tod_orchestrator.combine_maps(
                     map_tods=diffuse_tods,
@@ -1068,7 +1022,8 @@ class SimOrchestrator:
             # ------------------------------------------------------
             if source_result is not None and diffuse_tod is not None:
                 if self._tod_orchestrator is None:
-                    raise RuntimeError("TODOrchestrator is not configured.")
+                    msg = "TODOrchestrator is not configured."
+                    raise RuntimeError(msg)
 
                 combined_dataset = self._tod_orchestrator.combine(
                     source_tod=source_result.dataset,
@@ -1114,7 +1069,8 @@ class SimOrchestrator:
                 )
 
             else:
-                raise RuntimeError("No TOD contribution was generated.")
+                msg = "No TOD contribution was generated."
+                raise RuntimeError(msg)
 
             results.append(result)
             # ----------------------------------------------------------
@@ -1409,7 +1365,8 @@ class SimOrchestrator:
                 )
 
         if not sources:
-            raise RuntimeError("Nenhuma fonte disponível para simulação.")
+            msg = "Nenhuma fonte disponível para simulação."
+            raise RuntimeError(msg)
 
         self._logger.info(
             "processor_run_start",
@@ -1523,7 +1480,7 @@ class SimOrchestrator:
         return SimulationResult(
             dataset=dataset,
             sources=sources,
-            satellites=[s for s in satellites],
+            satellites=list(satellites),
             time_range=time_range,
         )
 
@@ -1545,16 +1502,20 @@ class SimOrchestrator:
         """
 
         if self._tod_orchestrator is None:
-            raise RuntimeError("TODOrchestrator is not configured.")
+            msg = "TODOrchestrator is not configured."
+            raise RuntimeError(msg)
 
         if self._skymap_tod_projector is None:
-            raise RuntimeError("SkyMap TOD projector is not configured.")
+            msg = "SkyMap TOD projector is not configured."
+            raise RuntimeError(msg)
 
         if alt_deg is None or az_deg is None:
-            raise ValueError(f"{source_name} TOD requires antenna Alt/Az pointing.")
+            msg = f"{source_name} TOD requires antenna Alt/Az pointing."
+            raise ValueError(msg)
 
         if not maps:
-            raise ValueError(f"{source_name} TOD requires at least one SkyMap.")
+            msg = f"{source_name} TOD requires at least one SkyMap."
+            raise ValueError(msg)
 
         time_grid = _compute_time_grid(time_range)
 
@@ -1598,10 +1559,12 @@ class SimOrchestrator:
         """
 
         if self._neutral_hydrogen_map_generator is None:
-            raise RuntimeError("Neutral hydrogen map generator is not configured.")
+            msg = "Neutral hydrogen map generator is not configured."
+            raise RuntimeError(msg)
 
         if self._cosmology_parameters is None:
-            raise RuntimeError("Cosmology parameters are not configured.")
+            msg = "Cosmology parameters are not configured."
+            raise RuntimeError(msg)
 
         source = NeutralHydrogen()
 
