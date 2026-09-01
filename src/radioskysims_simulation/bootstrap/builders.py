@@ -262,8 +262,14 @@ def build_simulation_context_dependencies(
         source_assembler=(source_assembler),
     )
 
+    # ``cfg`` vem de build_configuration e inclui ``antenna`` (objeto concreto
+    # da antena), que o ``SimulationContext`` não aceita — o orquestrador
+    # re-deriva o radiotelescópio a partir do ``telescope_name``. Filtra para
+    # manter apenas as chaves de contexto.
+    cfg_ctx = {k: v for k, v in cfg.items() if k != "antenna"}
+
     return {
-        **cfg,
+        **cfg_ctx,
         "db": db,
         **repos,
         **domain_components,
