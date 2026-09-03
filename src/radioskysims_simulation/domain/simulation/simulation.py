@@ -24,12 +24,12 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import xarray as xr
 from astropy.time import Time
-
 from radioskysims_core.domain.common import FrequencyRange, TimeRange
 from radioskysims_sources.domain.signal_source import (
     SignalSource,
     compute_theta_boresight,
 )
+
 from radioskysims_simulation.domain.simulation.transits import (
     chunk_uniform,
     extract_transits,
@@ -900,9 +900,7 @@ class SimulationResult:
                     "Feche o arquivo em outros processos/kernels e tente de novo: "
                     f"{exc}"
                 )
-                raise OSError(
-                    msg
-                ) from exc
+                raise OSError(msg) from exc
 
         result = self.select_source_type(source_type) if source_type is not None else self
         ds = chunk_uniform(result._dataset_for_persistence(), chunk_s, target_mb=target_mb)
@@ -1102,6 +1100,7 @@ class Simulation:
                             Antenna,
                             Pointing,
                         )
+
                         from radioskysims_simulation.domain.simulation.pointing import (
                             build_pointing_track_vectorized,
                         )
