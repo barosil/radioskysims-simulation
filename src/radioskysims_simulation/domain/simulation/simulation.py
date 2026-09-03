@@ -1230,7 +1230,7 @@ class Simulation:
             # conversão TT→UTC via astropy, que causava duplicação do eixo
             # temporal no xr.concat (13 pts TT-offset + 13 pts UTC exatos).
             if np.issubdtype(ds_src.coords["time"].dtype, np.floating):
-                from radioskysims_simulation.application.services.simulation_service import (
+                from radioskysims_simulation.domain.simulation.grids import (
                     _compute_time_grid,
                 )
 

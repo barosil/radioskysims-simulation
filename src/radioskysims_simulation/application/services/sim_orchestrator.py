@@ -39,8 +39,6 @@ from radioskysims_sources.domain.signal import (
 
 from radioskysims_simulation.application.services.simulation_service import (
     SimulationService,
-    _compute_freq_mhz,
-    _compute_time_grid,
 )
 from radioskysims_simulation.application.services.tod_orchestrator import (
     TODOrchestrator,
@@ -48,6 +46,10 @@ from radioskysims_simulation.application.services.tod_orchestrator import (
 from radioskysims_simulation.domain.simulation import (
     SimulationOrchestratorResult,
     SimulationResult,
+)
+from radioskysims_simulation.domain.simulation.grids import (
+    _compute_freq_mhz,
+    _compute_time_grid,
 )
 from radioskysims_simulation.domain.tod import TODSimulator
 from radioskysims_simulation.infrastructure.processing.resource_processor import (

@@ -32,6 +32,9 @@ from radioskysims_sources.infrastructure.db.radiosources_repository import Postg
 from radioskysims_sources.infrastructure.db.satellite.satelliterepository import SatelliteRepository
 from radioskysims_sources.infrastructure.db.signal.repository import SignalRepository
 from radioskysims_sources.infrastructure.external.radiosources_ingest import VizierTapIngestAdapter
+from radioskysims_sources.infrastructure.external.radiosource_track_provider import (
+    SkyfieldRadioSourceTrackProvider,
+)
 from radioskysims_simulation.application.services.simulation_service import SimulationService
 from radioskysims_simulation.application.services.tod_orchestrator import TODOrchestrator
 from radioskysims_simulation.domain.tod import TODSimulator
@@ -99,9 +102,14 @@ def build_domain_components(
 
     geometry = SkyfieldGeometryProvider(track_factory.skyfield.ts)
 
+    from radioskysims_sources.infrastructure.signal.gnsstools_psd import (
+        GnsstoolsAnalyticPsdProvider,
+    )
+
     signal_factory = SignalFactory(
         frequency_range=frequency_range,
         signal_repo=signal_repository,
+        psd_provider=GnsstoolsAnalyticPsdProvider(),
     )
 
     tod_simulator = TODSimulator(
@@ -230,6 +238,7 @@ def build_simulation_context_dependencies(
     radio_source_catalog_service = RadioSourceCatalogService(
         ingest_port=vizier_tap,
         repository=pg_radio_repo,
+        track_provider=SkyfieldRadioSourceTrackProvider(),
     )
 
     # --------------------------------------------------
