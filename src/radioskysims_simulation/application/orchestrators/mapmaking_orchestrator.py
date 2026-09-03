@@ -55,6 +55,23 @@ class MapMakingOrchestrator:
             MapMakingService(generator=generator, repository=repository)  # type: ignore[arg-type]
         )
 
+    @classmethod
+    def default(cls) -> "MapMakingOrchestrator":
+        """Monta com o mapmaker binned padrão (``HealpyBinnedMapMakerAdapter``).
+
+        Sem repositório de persistência (``persist=True`` exige passar um via
+        ``from_generator``/``from_service``).
+        """
+        from radioskysims_simulation.application.mapmaking.generate_from_tod import (
+            GenerateSkyMapsFromTODUseCase,
+        )
+        from radioskysims_simulation.infrastructure.mapmaking.healpy_binned import (
+            HealpyBinnedMapMakerAdapter,
+        )
+
+        generator = GenerateSkyMapsFromTODUseCase(mapmaker=HealpyBinnedMapMakerAdapter())
+        return cls.from_generator(generator)
+
     # ──────────────────────────────────────────────────────────
     # Fluxo
     # ──────────────────────────────────────────────────────────

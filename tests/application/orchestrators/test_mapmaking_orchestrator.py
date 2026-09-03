@@ -63,3 +63,9 @@ def test_repr():
     fake = FakeService()
     orch = _Orch(fake)  # type: ignore[arg-type]
     assert "MapMakingOrchestrator" in repr(orch)
+
+
+def test_default_monta_com_mapmaker_binned():
+    orch = MapMakingOrchestrator.default()
+    assert isinstance(orch, MapMakingOrchestrator)
+    assert "MapMakingOrchestrator" in repr(orch)
