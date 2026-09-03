@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import Any
 
 import xarray as xr
-
 from radioskysims_beam.domain.beam.operations import BeamOps
 from radioskysims_beam.domain.beam.properties import BeamProperties
 
