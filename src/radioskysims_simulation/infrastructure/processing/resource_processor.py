@@ -301,9 +301,8 @@ class MemoryEstimator:
         # T_antenna + power + ~3x arrays intermediários
         total_bytes = tensor_bytes * 5
 
-        return float(total_bytes) / (
-            1024 * 1024
-        )
+        return float(total_bytes) / (1024 * 1024)
+
 
 class ResourceLimitError(RuntimeError):
     """Exceção levantada quando os recursos são insuficientes."""
@@ -564,9 +563,7 @@ class ResourceAwareProcessor(Generic[T]):
                 "a resolução temporal, o número de canais ou o tempo de "
                 "simulação."
             )
-            raise ResourceLimitError(
-                msg
-            )
+            raise ResourceLimitError(msg)
 
         # Agrupa fontes em batches
         batches: list[SourceBatch] = []
@@ -873,9 +870,7 @@ class ResourceAwareProcessor(Generic[T]):
                     if batch_output_dir is not None:
                         # Streaming: grava o parcial e libera a memória.
                         Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
-                        fpath = Path(batch_output_dir) / (
-                            f"batch_{batch.batch_index:04d}.nc"
-                        )
+                        fpath = Path(batch_output_dir) / (f"batch_{batch.batch_index:04d}.nc")
                         self._write_partial(ds_partial, fpath, engine=part_engine)
                         part_files.append(str(fpath))
                         ds_partial = None  # permite GC liberar o array numpy
@@ -891,9 +886,7 @@ class ResourceAwareProcessor(Generic[T]):
                         BatchResult(
                             # No streaming a disco o parcial já foi gravado e
                             # liberado — manter o numpy impediria o GC.
-                            dataset=(
-                                None if batch_output_dir is not None else result.dataset
-                            ),
+                            dataset=(None if batch_output_dir is not None else result.dataset),
                             sources=batch.sources,
                             batch_index=batch.batch_index,
                             success=True,
@@ -929,9 +922,7 @@ class ResourceAwareProcessor(Generic[T]):
                 return self._open_merged(part_files)
 
             if not partials:
-                _errs = [
-                    str(r.error) for r in self._batch_results if r.error is not None
-                ]
+                _errs = [str(r.error) for r in self._batch_results if r.error is not None]
                 _detail = "; ".join(_errs[:3]) if _errs else "sem detalhes"
                 msg = f"Todos os batches falharam: {_detail}"
                 raise RuntimeError(msg)
@@ -948,11 +939,9 @@ class ResourceAwareProcessor(Generic[T]):
                 self._diagnostics["merged_t_antenna_backend"] = self._array_backend(
                     merged, "T_antenna"
                 )
-                self._diagnostics["merged_power_backend"] = self._array_backend(
-                    merged, "power"
-                )
-                self._diagnostics["merged_t_antenna_dask_tasks_approx"] = (
-                    self._dask_tasks_approx(merged, "T_antenna")
+                self._diagnostics["merged_power_backend"] = self._array_backend(merged, "power")
+                self._diagnostics["merged_t_antenna_dask_tasks_approx"] = self._dask_tasks_approx(
+                    merged, "T_antenna"
                 )
                 self._diagnostics["merged_power_dask_tasks_approx"] = self._dask_tasks_approx(
                     merged, "power"

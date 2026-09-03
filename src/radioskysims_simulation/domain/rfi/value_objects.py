@@ -19,13 +19,13 @@ from .exceptions import InvalidFrequencyRangeError
 class FrequencyRange:
     """
     Value Object que representa um intervalo de frequência em GHz.
-    
+
     Características:
     - Imutável (frozenset-like)
     - Comparável apenas por valor
     - Validações de domínio no construtor
     - Restrição: f_min < f_max, ambas > 0
-    
+
     Exemplo:
         fr = FrequencyRange(1.4, 1.8)
         assert 1.5 in fr
@@ -37,11 +37,11 @@ class FrequencyRange:
     def __init__(self, f_min: float, f_max: float) -> None:
         """
         Cria um FrequencyRange.
-        
+
         Args:
             f_min: Frequência mínima em GHz
             f_max: Frequência máxima em GHz
-            
+
         Raises:
             InvalidFrequencyRangeError: Se f_min >= f_max ou valores não-positivos
         """
@@ -88,10 +88,10 @@ class FrequencyRange:
     def __contains__(self, frequency: float) -> bool:
         """
         Verifica se uma frequência está dentro deste intervalo.
-        
+
         Args:
             frequency: Frequência em GHz
-            
+
         Returns:
             True se f_min <= frequency <= f_max
         """
@@ -100,10 +100,10 @@ class FrequencyRange:
     def overlaps_with(self, other: FrequencyRange) -> bool:
         """
         Verifica se este intervalo sobrepõe com outro.
-        
+
         Args:
             other: Outro FrequencyRange
-            
+
         Returns:
             True se há sobreposição, False caso contrário
         """
@@ -112,28 +112,28 @@ class FrequencyRange:
     def intersection(self, other: FrequencyRange) -> FrequencyRange | None:
         """
         Calcula interseção com outro intervalo.
-        
+
         Args:
             other: Outro FrequencyRange
-            
+
         Returns:
             FrequencyRange da interseção, ou None se não há sobreposição
         """
         if not self.overlaps_with(other):
             return None
-        
+
         f_min = max(self._f_min, other._f_min)
         f_max = min(self._f_max, other._f_max)
-        
+
         return FrequencyRange(f_min, f_max)
 
     def union(self, other: FrequencyRange) -> FrequencyRange | tuple[FrequencyRange, ...]:
         """
         Calcula união com outro intervalo.
-        
+
         Args:
             other: Outro FrequencyRange
-            
+
         Returns:
             Um novo FrequencyRange se contíguo, ou tupla se disjuntos
         """
@@ -141,7 +141,7 @@ class FrequencyRange:
             f_min = min(self._f_min, other._f_min)
             f_max = max(self._f_max, other._f_max)
             return FrequencyRange(f_min, f_max)
-        
+
         # Retorna ambos em ordem
         if self._f_max < other._f_min:
             return (self, other)
@@ -151,10 +151,7 @@ class FrequencyRange:
         """Igualdade por valor."""
         if not isinstance(other, FrequencyRange):
             return NotImplemented
-        return (
-            np.isclose(self._f_min, other._f_min)
-            and np.isclose(self._f_max, other._f_max)
-        )
+        return np.isclose(self._f_min, other._f_min) and np.isclose(self._f_max, other._f_max)
 
     def __hash__(self) -> int:
         """Hash para usar em conjuntos/dicionários."""

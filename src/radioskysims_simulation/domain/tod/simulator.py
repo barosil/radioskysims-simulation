@@ -98,9 +98,7 @@ class TODSimulator:
                 "beam deve fornecer um atributo 'dataset' ou implementar "
                 "os métodos normalized() e evaluate()."
             )
-            raise TypeError(
-                msg
-            )
+            raise TypeError(msg)
 
         normalized_beam = normalized(
             kind="integral",
@@ -289,9 +287,7 @@ class TODSimulator:
                 "'W/m²/Hz' (flux density); got "
                 f"{signal_units!r}"
             )
-            raise ValueError(
-                msg
-            )
+            raise ValueError(msg)
 
         if self.beam is None:
             msg = (
@@ -299,9 +295,7 @@ class TODSimulator:
                 "Forneça um beam no construtor ou injete em "
                 "`simulator.beam`."
             )
-            raise ValueError(
-                msg
-            )
+            raise ValueError(msg)
 
         evaluate = getattr(
             self.beam,
@@ -343,10 +337,10 @@ class TODSimulator:
             )
 
             if "polarization" not in beam_coordinates:
-                msg = "Beam dataset declares polarization dimension without polarization coordinates."
-                raise ValueError(
-                    msg
+                msg = (
+                    "Beam dataset declares polarization dimension without polarization coordinates."
                 )
+                raise ValueError(msg)
 
             polarizations = np.asarray(beam_coordinates["polarization"].values)
 
@@ -436,18 +430,14 @@ class TODSimulator:
                 "(total power) or 'W/m²/Hz' "
                 "(flux density)."
             )
-            raise ValueError(
-                msg
-            )
+            raise ValueError(msg)
 
         if self.effective_area_m2 is None:
             msg = (
                 "effective_area_m2 must be provided for absolute radiometric "
                 "conversion of discrete-source flux density to antenna temperature."
             )
-            raise ValueError(
-                msg
-            )
+            raise ValueError(msg)
 
         # Fonte não polarizada observada em uma polarização instrumental:
         #
@@ -636,10 +626,10 @@ class TODSimulator:
         missing_pointing = required_pointing - set(pointing_track.data_vars)
 
         if missing_pointing:
-            msg = f"pointing_track must contain 'ra' and 'dec'; missing: {sorted(missing_pointing)}."
-            raise ValueError(
-                msg
+            msg = (
+                f"pointing_track must contain 'ra' and 'dec'; missing: {sorted(missing_pointing)}."
             )
+            raise ValueError(msg)
 
         if "time" not in pointing_track.coords:
             msg = "pointing_track must contain a time coordinate."
@@ -791,9 +781,7 @@ class TODSimulator:
                     f"Unsupported SkyMap temperature unit {map_unit!r}. "
                     "Expected 'uK', 'uK_CMB' or 'K'."
                 )
-                raise ValueError(
-                    msg
-                )
+                raise ValueError(msg)
 
             # --------------------------------------------------
             # Instrument gain

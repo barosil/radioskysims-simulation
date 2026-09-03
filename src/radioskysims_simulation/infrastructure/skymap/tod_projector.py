@@ -47,9 +47,7 @@ class HealpySkyMapTODProjector(SkyMapTODProjector):
 
         if missing:
             msg = f"pointing_track must contain RA/Dec variables; missing: {sorted(missing)}."
-            raise ValueError(
-                msg
-            )
+            raise ValueError(msg)
 
         ra_values = np.asarray(
             pointing_track["ra"].values,
@@ -162,9 +160,7 @@ class HealpySkyMapTODProjector(SkyMapTODProjector):
                 "'galactic' and 'equatorial' frames; "
                 f"received {skymap.frame!r}."
             )
-            raise ValueError(
-                msg
-            )
+            raise ValueError(msg)
 
         # --------------------------------------------------------------
         # HEALPix interpolation

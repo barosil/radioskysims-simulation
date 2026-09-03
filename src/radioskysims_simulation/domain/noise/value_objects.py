@@ -134,9 +134,7 @@ class Efficiency:
         try:
             v = float(value)
         except (TypeError, ValueError) as err:
-            msg = (
-                f"efficiency deve ser float em (0, 1], recebido {type(value).__name__}"
-            )
+            msg = f"efficiency deve ser float em (0, 1], recebido {type(value).__name__}"
             raise InvalidNoiseParameterError(msg) from err
 
         if v <= 0 or v > 1:
@@ -294,9 +292,7 @@ class IntegrationTime:
         try:
             v = float(value)
         except (TypeError, ValueError) as err:
-            msg = (
-                f"integration_time deve ser float > 0, recebido {type(value).__name__}"
-            )
+            msg = f"integration_time deve ser float > 0, recebido {type(value).__name__}"
             raise InvalidNoiseParameterError(msg) from err
 
         if v <= 0:

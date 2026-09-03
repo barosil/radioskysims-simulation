@@ -29,9 +29,7 @@ def create_simulation_context(
         SimulationContext,
     )
 
-    deps = build_simulation_context_dependencies(
-        telescope=telescope, settings_file=settings_file
-    )
+    deps = build_simulation_context_dependencies(telescope=telescope, settings_file=settings_file)
     return SimulationContext(**deps)
 
 
@@ -46,9 +44,7 @@ def create_sim_orchestrator(
         SimOrchestrator,
     )
 
-    context = create_simulation_context(
-        telescope=telescope, settings_file=settings_file
-    )
+    context = create_simulation_context(telescope=telescope, settings_file=settings_file)
     return SimOrchestrator(context)
 
 

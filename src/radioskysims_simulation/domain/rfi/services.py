@@ -179,12 +179,10 @@ class RFIService:
 
             # Sem NaNs novos
             original_nans = sum(
-                original_tod[var].isnull().sum().item()
-                for var in original_tod.data_vars
+                original_tod[var].isnull().sum().item() for var in original_tod.data_vars
             )
             filtered_nans = sum(
-                filtered_tod[var].isnull().sum().item()
-                for var in filtered_tod.data_vars
+                filtered_tod[var].isnull().sum().item() for var in filtered_tod.data_vars
             )
 
             if filtered_nans <= original_nans:

@@ -165,9 +165,7 @@ class RFIDetector:
             return []
 
         # Calcular desvio normalizado: deviation = (power - baseline) / baseline.std()
-        deviation = (
-            power - baseline[np.newaxis, :]
-        ) / baseline_std  # shape: (n_time, n_frequency)
+        deviation = (power - baseline[np.newaxis, :]) / baseline_std  # shape: (n_time, n_frequency)
 
         # Encontrar pixels acima do limiar
         mask = deviation > self.threshold_sigma  # shape: (n_time, n_frequency)

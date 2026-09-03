@@ -70,9 +70,7 @@ class TODPanel(PanelApplication):
 
     def build_main(self):
         """Constrói a área principal (plot)."""
-        self._plot_pane = pn.pane.HoloViews(
-            self._make_plot(), sizing_mode="stretch_both"
-        )
+        self._plot_pane = pn.pane.HoloViews(self._make_plot(), sizing_mode="stretch_both")
         return self._plot_pane
 
     # ------------------------------------------------------------------
@@ -129,6 +127,4 @@ if __name__ == "__main__":
         "a partir de radioskysims_simulation.application.tod_panel e passe o resultado de uma simulação.",
         duration=5000,
     )
-    pn.serve(
-        pn.pane.Markdown("# TODPanel\nImporte e use a partir de Python."), show=True
-    )
+    pn.serve(pn.pane.Markdown("# TODPanel\nImporte e use a partir de Python."), show=True)

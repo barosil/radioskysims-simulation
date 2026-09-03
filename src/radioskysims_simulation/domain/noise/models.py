@@ -90,9 +90,7 @@ class Noise:
         elif isinstance(efficiency, Efficiency):
             self._efficiency = efficiency
         else:
-            msg = (
-                f"efficiency deve ser float ou Efficiency, recebido {type(efficiency)}"
-            )
+            msg = f"efficiency deve ser float ou Efficiency, recebido {type(efficiency)}"
             raise InvalidNoiseParameterError(msg)
 
     @property
@@ -173,9 +171,7 @@ class Noise:
             # - Mantém valores razoáveis (da ordem de T_sys para parametros típicos)
 
             bw_mhz = bw / 1e6  # normaliza para MHz
-            t_thermal_scalar = (
-                (self.t_sys / np.sqrt(tau)) * np.sqrt(bw_mhz) * self.efficiency
-            )
+            t_thermal_scalar = (self.t_sys / np.sqrt(tau)) * np.sqrt(bw_mhz) * self.efficiency
 
             # Repetir para cada frequência
             t_thermal = np.full_like(freq, t_thermal_scalar, dtype=float)
@@ -339,9 +335,7 @@ class Noise:
             t_thermal = self.thermal_noise_power(freq, bw, tau)  # shape (Nf,)
 
             # Ruído atmosférico (depende de elevação, varia no tempo)
-            t_atm = self.atmospheric_noise(
-                elevation_broadcast, frequency=freq[0]
-            )  # shape (Nt,)
+            t_atm = self.atmospheric_noise(elevation_broadcast, frequency=freq[0])  # shape (Nt,)
 
             # Combinar: broadcast para (Nt, Nf)
             # t_total[t,f] = t_thermal[f] + t_atm[t]
@@ -364,9 +358,7 @@ class Noise:
 
             # Garantir shape
             if t_total.shape != (Nt, Nf):
-                msg = (
-                    f"Shape incorreto: esperado ({Nt}, {Nf}), recebido {t_total.shape}"
-                )
+                msg = f"Shape incorreto: esperado ({Nt}, {Nf}), recebido {t_total.shape}"
                 raise NoiseGenerationError(msg)
 
             return t_total
@@ -381,9 +373,7 @@ class Noise:
         """Igualdade baseada em parâmetros."""
         if not isinstance(other, Noise):
             return False
-        return np.isclose(self.t_sys, other.t_sys) and np.isclose(
-            self.efficiency, other.efficiency
-        )
+        return np.isclose(self.t_sys, other.t_sys) and np.isclose(self.efficiency, other.efficiency)
 
     def __hash__(self) -> int:
         """Hash baseado nos parâmetros imutáveis."""

@@ -292,10 +292,7 @@ class RFI:
         """Igualdade por valor."""
         if not isinstance(other, RFI):
             return NotImplemented
-        return (
-            self._frequency_ranges == other._frequency_ranges
-            and self._name == other._name
-        )
+        return self._frequency_ranges == other._frequency_ranges and self._name == other._name
 
     def __hash__(self) -> int:
         """Hash para usar em conjuntos."""
