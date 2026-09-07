@@ -386,6 +386,54 @@ class SimOrchestrator:
 
         return self._ctx
 
+    def run_maps(
+        self,
+        *,
+        maps: Iterable[Any],
+        pointing_track: xr.Dataset,
+        use_beam: bool = True,
+    ) -> xr.Dataset:
+        """Gera TOD a partir de mapas HEALPix difusos.
+
+        Esta fachada pública mantém o projector concreto encapsulado no
+        composition root da simulação e delega a geração física do TOD ao
+        TODOrchestrator configurado.
+
+        Parameters
+        ----------
+        maps:
+            Mapas HEALPix a serem projetados no pointing do radiotelescópio.
+        pointing_track:
+            Trajetória de apontamento do radiotelescópio.
+        use_beam:
+            Se True, aplica a resposta do beam durante a projeção.
+
+        Returns
+        -------
+        xr.Dataset
+            Time-Ordered Data gerado a partir dos mapas.
+
+        Raises
+        ------
+        RuntimeError
+            Se o TODOrchestrator ou o projector mapa→TOD não estiverem
+            configurados.
+        """
+        if self._tod_orchestrator is None:
+            msg = "TODOrchestrator is not configured."
+            raise RuntimeError(msg)
+
+        if self._skymap_tod_projector is None:
+            msg = "SkyMap TOD projector is not configured."
+            raise RuntimeError(msg)
+
+        return self._tod_orchestrator.run_maps(
+            maps=maps,
+            pointing_track=pointing_track,
+            projector=self._skymap_tod_projector,
+            use_beam=use_beam,
+        )
+
     @property
     def simulation_repository(self) -> Any | None:
         """Repositório de simulações (persistência dos resumos)."""
