@@ -37,7 +37,6 @@ Last modified: 2026-08-04
 
 from __future__ import annotations
 
-import logging
 import os
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -48,10 +47,11 @@ import numpy as np
 import xarray as xr
 
 from radioskysims_core.domain.common import FrequencyRange, TimeRange
+from radioskysims_core.logging_config import get_logger
 from radioskysims_sources.domain.signal_source import SignalSource
 from radioskysims_simulation.domain.simulation import Simulation, SimulationResult
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Estimativa de footprint de memória
