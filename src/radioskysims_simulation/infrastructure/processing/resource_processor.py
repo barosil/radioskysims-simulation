@@ -373,6 +373,7 @@ class ResourceAwareProcessor(Generic[T]):
         dask_scheduler: str = "threads",
         dask_processes: bool | None = None,
         diagnostics_enabled: bool = False,
+        progress_callback: Callable[[int, int], None] | None = None,
         logger: Any | None = None,
     ) -> None:
         self._resources = resources or ProcessingResources.detect()
@@ -380,6 +381,7 @@ class ResourceAwareProcessor(Generic[T]):
         self._dask_scheduler = dask_scheduler
         self._dask_processes = dask_processes
         self._diagnostics_enabled = diagnostics_enabled
+        self._progress_callback = progress_callback
         self._log = logger or log
 
         self._n_batches: int = 0
@@ -505,6 +507,12 @@ class ResourceAwareProcessor(Generic[T]):
     def resources(self) -> ProcessingResources:
         """Recursos detectados/configurados."""
         return self._resources
+
+    @property
+    def progress_callback(self) -> Callable[[int, int], None] | None:
+        """Callback opcional usado para reportar progresso dos batches."""
+
+        return self._progress_callback
 
     @property
     def cpu_count(self) -> int:
@@ -814,7 +822,11 @@ class ResourceAwareProcessor(Generic[T]):
                     n_sources=len(batch.sources),
                     estimated_mb=round(batch.estimated_mb, 0),
                 )
-
+                if self._progress_callback is not None:
+                    self._progress_callback(
+                        batch.batch_index + 1,
+                        len(batches),
+                    )
                 rss_before_batch_mb = None
                 source_type_counts = None
                 if self._diagnostics is not None:
