@@ -45,10 +45,10 @@ def test_tod_simulator_performance():
             return self._range
 
     class SimpleBeam:
-        def normalized(self, kind: str = "integral"):
+        def normalized(self, kind: str = "integral"):  # noqa: ARG002
             return self
 
-        def evaluate(self, *, frequency: xr.DataArray, angle: xr.DataArray, polarization=None):
+        def evaluate(self, *, frequency: xr.DataArray, angle: xr.DataArray, polarization=None):  # noqa: ARG002
             # fast, vectorized amplitude: shape (time, freq)
             freq_vals = np.asarray(frequency.values)
             ang_vals = np.asarray(angle.values)

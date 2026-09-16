@@ -276,9 +276,10 @@ def test_simulation_result_repr_detects_dask_without_compute(monkeypatch) -> Non
 
     called = {"compute": False}
 
-    def _fail_compute(self, *args, **kwargs):
+    def _fail_compute(_self, *_args, **_kwargs):
         called["compute"] = True
-        raise RuntimeError("repr must not call compute")
+        msg = "repr must not call compute"
+        raise RuntimeError(msg)
 
     monkeypatch.setattr(xr.Dataset, "compute", _fail_compute)
 

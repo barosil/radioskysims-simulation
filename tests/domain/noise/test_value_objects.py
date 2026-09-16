@@ -5,7 +5,6 @@ Testes unitários para value objects do domínio Noise.
 """
 
 import pytest
-import numpy as np
 
 from radioskysims_simulation.domain.noise import (
     SystemTemperature,

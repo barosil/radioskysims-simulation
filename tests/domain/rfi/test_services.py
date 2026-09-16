@@ -185,7 +185,7 @@ class TestRFIServiceStateless:
         """Operações não compartilham estado."""
         rfi = RFI([FrequencyRange(1.4, 1.8)], name="Original")
         
-        combined = RFIService.combine_rfis([rfi])
+        RFIService.combine_rfis([rfi])
         
         # Original não deve ser modificado
         assert len(rfi.frequency_ranges) == 1

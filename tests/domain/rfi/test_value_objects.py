@@ -5,7 +5,6 @@ Testes unitários para FrequencyRange.
 """
 
 import pytest
-import numpy as np
 
 from radioskysims_simulation.domain.rfi import (
     FrequencyRange,
