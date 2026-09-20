@@ -217,7 +217,8 @@ def test_extract_transits_never_computes_full_dataset_and_respects_chunk_s(monke
     def _spy_compute(self, *args, **kwargs):
         n_time = int(self.sizes.get("time", 0))
         if n_time == full_n_time:
-            raise AssertionError("extract_transits must not compute the full dataset")
+            msg = "extract_transits must not compute the full dataset"
+            raise AssertionError(msg)
         seen_time_sizes.append(n_time)
         return original_compute(self, *args, **kwargs)
 
@@ -261,13 +262,14 @@ def test_orchestrator_result_events_uses_chunk_compute_and_caches(monkeypatch) -
     def _spy_compute(self, *args, **kwargs):
         n_time = int(self.sizes.get("time", 0))
         if n_time == full_n_time:
-            raise AssertionError("events must not compute the full dataset")
+            msg = "events must not compute the full dataset"
+            raise AssertionError(msg)
         seen_time_sizes.append(n_time)
         return original_compute(self, *args, **kwargs)
 
     monkeypatch.setattr(
         "radioskysims_simulation.domain.simulation.transits.estimate_time_chunk",
-        lambda dataset, target_mb=64.0: 25,
+        lambda dataset, target_mb=64.0: 25,  # noqa: ARG005
     )
     monkeypatch.setattr(xr.Dataset, "compute", _spy_compute)
 

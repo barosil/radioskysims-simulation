@@ -21,7 +21,7 @@ class DummyMapProjector:
         *,
         skymap,
         pointing_track,
-        fwhm_rad=None,
+        fwhm_rad=None,  # noqa: ARG002
     ):
         return xr.DataArray(
             np.full(

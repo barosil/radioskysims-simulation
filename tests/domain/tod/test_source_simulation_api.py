@@ -79,7 +79,7 @@ class DummySource:
 class DummyBeam:
     def normalized(
         self,
-        kind="integral",
+        kind="integral",  # noqa: ARG002
     ):
         return self
 
@@ -88,7 +88,7 @@ class DummyBeam:
         *,
         frequency,
         angle,
-        polarization=None,
+        polarization=None,  # noqa: ARG002
     ):
         values = np.ones(
             (
@@ -227,4 +227,5 @@ def test_discrete_source_requires_effective_area_for_absolute_radiometry():
     except ValueError as exc:
         assert "effective_area_m2" in str(exc)
     else:
-        raise AssertionError("Expected discrete-source simulation to require effective_area_m2.")
+        msg = "Expected discrete-source simulation to require effective_area_m2."
+        raise AssertionError(msg)

@@ -37,13 +37,13 @@ class FakeRepository:
 
         return len(self.saved)
 
-    def load(self, record_id: int):
+    def load(self, record_id: int):  # noqa: ARG002
         return None
 
-    def get_metadata(self, record_id: int):
+    def get_metadata(self, record_id: int):  # noqa: ARG002
         return None
 
-    def delete(self, record_id: int) -> bool:
+    def delete(self, record_id: int) -> bool:  # noqa: ARG002
         return False
 
 

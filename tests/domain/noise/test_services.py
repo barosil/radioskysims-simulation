@@ -211,7 +211,12 @@ class TestNoiseServiceIntegration:
         noise = NoiseService.create_noise_system(t_sys=100.0)
         
         # Sensibilidade
-        nefd = NoiseService.estimate_sensitivity(noise, bandwidth=1e6, integration_time=1.0)
+        nefd = NoiseService.estimate_sensitivity(
+            noise,
+            bandwidth=1e6,
+            integration_time=1.0,
+        )
+        assert nefd > 0
         
         # Gerar ruído
         frequencies = np.array([1.4e9])

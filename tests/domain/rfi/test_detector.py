@@ -7,7 +7,6 @@ Testes unitários para RFIDetector.
 import pytest
 import numpy as np
 import xarray as xr
-from datetime import datetime
 
 from radioskysims_simulation.domain.rfi import RFIDetector, RFIEvent
 

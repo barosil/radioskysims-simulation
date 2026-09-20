@@ -156,6 +156,8 @@ class SimOrchestrator:
     def __init__(
         self,
         context: SimulationContext,
+        *,
+        processor: ResourceAwareProcessor | None = None,
     ) -> None:
         self._ctx = context
         # Corte de fluxo (Jy) para o catálogo de rádio — vem do settings.toml
@@ -184,9 +186,9 @@ class SimOrchestrator:
 
         self._logger = context.logger or _NoopLogger()
 
-        # Processor ativo da última simulação com
-        # ``use_processor=True``.
-        self._processor: ResourceAwareProcessor | None = None
+        # Processor opcional injetado pelo usuário/composition root.
+        # Quando None, o caminho legado pode criar um processor sob demanda.
+        self._processor: ResourceAwareProcessor | None = processor
         self._neutral_hydrogen_map_generator = getattr(
             context,
             "neutral_hydrogen_map_generator",
@@ -387,6 +389,106 @@ class SimOrchestrator:
         return self._ctx
 
     @property
+    def processor(self) -> ResourceAwareProcessor | None:
+        """Processor computacional associado ao orquestrador."""
+        return self._processor
+
+    @property
+    def dashboard_url(self) -> str | None:
+        """URL do dashboard do Processor, quando disponível."""
+
+        if self._processor is None:
+            return None
+
+        return self._processor.dashboard_url
+
+    def _resolve_processor(
+        self,
+        *,
+        max_batch_mb: float | None,
+        cpu_count: int | None,
+        memory_mb: float | None,
+        dask_scheduler: str | None,
+        dask_processes: bool | None,
+        processor_diagnostics: bool,
+    ) -> ResourceAwareProcessor:
+        """Retorna o Processor injetado ou cria um automaticamente.
+
+        Quando um ``ResourceAwareProcessor`` foi fornecido ao construtor,
+        ele é reutilizado. Caso contrário, os recursos são detectados e um
+        processor é criado sob demanda, preservando o comportamento legado.
+        """
+
+        if self._processor is not None:
+            return self._processor
+
+        resources = ProcessingResources.detect(
+            cpu_count=cpu_count,
+            memory_mb=memory_mb,
+        )
+
+        processor = ResourceAwareProcessor(
+            resources=resources,
+            max_batch_mb=max_batch_mb,
+            dask_scheduler=dask_scheduler or "threads",
+            dask_processes=dask_processes,
+            diagnostics_enabled=processor_diagnostics,
+            logger=self._logger,
+        )
+
+        self._processor = processor
+
+        return processor
+
+    def run_maps(
+        self,
+        *,
+        maps: Iterable[Any],
+        pointing_track: xr.Dataset,
+        use_beam: bool = True,
+    ) -> xr.Dataset:
+        """Gera TOD a partir de mapas HEALPix difusos.
+
+        Esta fachada pública mantém o projector concreto encapsulado no
+        composition root da simulação e delega a geração física do TOD ao
+        TODOrchestrator configurado.
+
+        Parameters
+        ----------
+        maps:
+            Mapas HEALPix a serem projetados no pointing do radiotelescópio.
+        pointing_track:
+            Trajetória de apontamento do radiotelescópio.
+        use_beam:
+            Se True, aplica a resposta do beam durante a projeção.
+
+        Returns
+        -------
+        xr.Dataset
+            Time-Ordered Data gerado a partir dos mapas.
+
+        Raises
+        ------
+        RuntimeError
+            Se o TODOrchestrator ou o projector mapa→TOD não estiverem
+            configurados.
+        """
+        if self._tod_orchestrator is None:
+            msg = "TODOrchestrator is not configured."
+            raise RuntimeError(msg)
+
+        if self._skymap_tod_projector is None:
+            msg = "SkyMap TOD projector is not configured."
+            raise RuntimeError(msg)
+
+        return self._tod_orchestrator.run_maps(
+            maps=maps,
+            pointing_track=pointing_track,
+            projector=self._skymap_tod_projector,
+            use_beam=use_beam,
+        )
+
+    @property
     def simulation_repository(self) -> Any | None:
         """Repositório de simulações (persistência dos resumos)."""
         return getattr(self._ctx, "simulation_repository", None)
@@ -464,6 +566,7 @@ class SimOrchestrator:
         telescope: str = "default",
         *,
         settings_file: str | Path | None = None,
+        processor: ResourceAwareProcessor | None = None,
     ) -> SimOrchestrator:
         """Cria um :class:`SimOrchestrator` usando um arquivo de settings.
 
@@ -479,8 +582,14 @@ class SimOrchestrator:
         """
         from radioskysims_simulation.bootstrap.composition import create_simulation_context
 
-        ctx = create_simulation_context(telescope=telescope, settings_file=settings_file)
-        return cls(ctx)
+        ctx = create_simulation_context(
+            telescope=telescope,
+            settings_file=settings_file,
+        )
+        return cls(
+            ctx,
+            processor=processor,
+        )
 
     # ------------------------------------------------------------------
     # Helpers de configuração
@@ -1377,23 +1486,16 @@ class SimOrchestrator:
             cpu_count=cpu_count,
         )
 
-        resources = ProcessingResources.detect(
+        processor = self._resolve_processor(
+            max_batch_mb=max_batch_mb,
             cpu_count=cpu_count,
             memory_mb=memory_mb,
-        )
-
-        processor = ResourceAwareProcessor(
-            resources=resources,
-            max_batch_mb=max_batch_mb,
-            dask_scheduler=dask_scheduler or "threads",
+            dask_scheduler=dask_scheduler,
             dask_processes=dask_processes,
-            diagnostics_enabled=processor_diagnostics,
-            logger=self._logger,
+            processor_diagnostics=processor_diagnostics,
         )
 
-        # Mantém a referência para permitir ``shutdown()`` após o compute/save
-        # do resultado — o cluster "distributed" fica vivo p/ dataset lazy.
-        self._processor = processor
+        resources = processor.resources
 
         batches = processor.partition_sources(
             sources=sources,

@@ -428,7 +428,8 @@ def test_search_does_not_load_external_dataset(repo: SimulationRepository, monke
     from radioskysims_simulation.domain.simulation.simulation import SimulationResult as _SR
 
     def _fail_load(*_args, **_kwargs):
-        raise AssertionError("search nao deve carregar datasets externos")
+        msg = "search nao deve carregar datasets externos"
+        raise AssertionError(msg)
 
     monkeypatch.setattr(_SR, "load", _fail_load)
 

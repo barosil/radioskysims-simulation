@@ -7,7 +7,7 @@ import warnings
 import pytest
 
 
-def pytest_configure(config):
+def pytest_configure(config):  # noqa: ARG001
     warnings.filterwarnings("ignore", category=pytest.PytestUnraisableExceptionWarning)
     warnings.filterwarnings("ignore", message=r"numpy\.core\.", category=DeprecationWarning)
     # Aviso benigno de compatibilidade binária do netCDF4/h5py (numpy size changed)
