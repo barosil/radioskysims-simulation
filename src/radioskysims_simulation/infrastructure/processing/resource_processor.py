@@ -46,9 +46,9 @@ from typing import Any, Generic, TypeVar
 
 import numpy as np
 import xarray as xr
-
 from radioskysims_core.domain.common import FrequencyRange, TimeRange
 from radioskysims_sources.domain.signal_source import SignalSource
+
 from radioskysims_simulation.domain.simulation import Simulation, SimulationResult
 
 log = logging.getLogger(__name__)
