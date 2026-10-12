@@ -228,7 +228,10 @@ def build_simulation_context_dependencies(
             "neutral_hydrogen_map_generator": None,
         }
 
-    local_sources_service = build_local_sources_service(db)
+    local_sources_service = build_local_sources_service(
+        db,
+        solar_flux_source=str((load_config("solar_flux") or {}).get("source", "srd")),
+    )
 
     # --------------------------------------------------
     # RadioSourceCatalogService
