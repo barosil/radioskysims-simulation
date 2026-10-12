@@ -774,6 +774,22 @@ class SimulationService:
                 "eirp_map_unavailable", msg="Não foi possível carregar EIRP. Usando 0 dBW."
             )
 
+        # ── Resolve EIRP individual por satélite (opcional) ──
+        # signals.json pode declarar EIRPs reais por NORAD ID; elas têm
+        # precedência sobre o valor nominal da constelação.
+        eirp_by_sat: dict[int, float] = {}
+        try:
+            get_eirp_by_sat = getattr(
+                self._signal_factory.signal_repo, "get_eirp_by_satellite", None
+            )
+            if get_eirp_by_sat is not None:
+                eirp_by_sat = get_eirp_by_sat()
+        except Exception:
+            self._logger.warning(
+                "eirp_by_satellite_unavailable",
+                msg="Não foi possível carregar EIRP individual; usando valor da constelação.",
+            )
+
         assembled: list[SatelliteAssembled] = []
         freq_hz = self._signal_factory.frequency_grid_hz()
         freq_da = xr.DataArray(freq_hz, dims="frequency", name="frequency")
@@ -785,8 +801,15 @@ class SimulationService:
                 continue
 
             # ── Determina EIRP para este satélite ──
+            # Precedência: EIRP individual (NORAD) > EIRP nominal da constelação.
             const = (sat.constellation or "").upper()
-            eirp_dbw = eirp_map.get(const, 0.0)
+            eirp_individual = eirp_by_sat.get(norad_id)
+            if eirp_individual is None:
+                try:
+                    eirp_individual = eirp_by_sat.get(int(norad_id))
+                except (TypeError, ValueError):
+                    eirp_individual = None
+            eirp_dbw = eirp_individual if eirp_individual is not None else eirp_map.get(const, 0.0)
             eirp_linear = 10.0 ** (eirp_dbw / 10.0)  # dBW → Watts
 
             psd_arrays = []
