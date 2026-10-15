@@ -13,6 +13,7 @@ Last modified: 2026-08-03
 from __future__ import annotations
 
 import json
+import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -23,6 +24,22 @@ if TYPE_CHECKING:
     from radioskysims_core.domain.common import FrequencyRange, Observer, TimeRange
 
 SUMMARY_VERSION = "1.0"
+
+_LOGGER = logging.getLogger(__name__)
+
+# Tipos canônicos de fonte. Arquivos antigos podem trazer a coord
+# ``source_type`` truncada (ex.: dtype ``<U9`` → "localsource" vira
+# "localsour"), então normalizamos por prefixo.
+_CANONICAL_SOURCE_TYPES: tuple[str, ...] = ("satellite", "localsource", "radiosource")
+
+
+def _normalize_source_type(value: Any) -> str:
+    """Mapeia ``source_type`` (inclusive truncado) ao rótulo canônico."""
+    text = str(value).strip().lower()
+    for canonical in _CANONICAL_SOURCE_TYPES:
+        if text and canonical.startswith(text):
+            return canonical
+    return text
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -382,27 +399,26 @@ def populate_computation(result: Any, config: dict[str, Any]) -> dict[str, Any]:
 def populate_sky_stats(result: Any, config: dict[str, Any]) -> dict[str, Any]:
     """Preenche estatísticas de céu (T_antenna por tipo, fluxo do Sol).
 
-    Requer dataset materializado (numpy). Se o dataset ainda for lazy,
-    os campos de estatística permanecem ``None``.
+    As estatísticas são computadas por FATIA (source a source), então
+    funcionam com dataset lazy (dask): apenas o(s) source(s) local/radio são
+    materializados, nunca o TOD inteiro.
     """
     ds = getattr(result, "dataset", None)
     if ds is None or "T_antenna" not in ds:
         return config
 
     T = ds["T_antenna"]
-    try:
-        import dask.array as da
-
-        if isinstance(T.data, da.Array):
-            return config  # lazy — não computa estatísticas aqui
-    except ImportError:
-        pass
 
     sky = config["simulation"]["sky"]
 
-    if "source" in T.dims and "source_type" in ds.coords:
+    if "source" in T.dims:
         source_names = ds.coords["source"].values
-        source_types = [str(t) for t in ds.coords["source_type"].values]
+        has_types = "source_type" in ds.coords
+        source_types = (
+            [_normalize_source_type(t) for t in ds.coords["source_type"].values]
+            if has_types
+            else []
+        )
 
         # Colapsa polarization/pointing mantendo (time, frequency, source)
         try:
@@ -410,29 +426,42 @@ def populate_sky_stats(result: Any, config: dict[str, Any]) -> dict[str, Any]:
         except Exception:
             T_src = T
 
-        # Agrega por tipo
-        for stype, key in (
-            ("localsource", "localsources"),
-            ("radiosource", "radiosources"),
-        ):
-            mask = np.array([t == stype for t in source_types])
-            if not mask.any():
-                continue
-            idx = np.where(mask)[0]
-            block = sky[key]
-            if not isinstance(block, dict) or not block:
-                continue
-            if key == "radiosources":
-                block["t_antenna_k"] = _quantiles(
-                    np.asarray(T_src.isel(source=idx).values, dtype=float)
-                )
-            else:
-                # localsources: bloco chaveado por nome de fonte (ex.: Sun) —
-                # preenche a estatística dentro de cada entrada de fonte.
-                for j in idx:
-                    sname = str(source_names[j])
-                    entry = block.get(sname)
-                    if isinstance(entry, dict):
+        # Agrega por tipo (quando a coordenada existe)
+        if has_types:
+            for stype, key in (
+                ("localsource", "localsources"),
+                ("radiosource", "radiosources"),
+            ):
+                mask = np.array([t == stype for t in source_types])
+                if not mask.any():
+                    continue
+                idx = np.where(mask)[0]
+                block = sky[key]
+                if not isinstance(block, dict) or not block:
+                    continue
+                if key == "radiosources":
+                    block["t_antenna_k"] = _quantiles(
+                        np.asarray(T_src.isel(source=idx).values, dtype=float)
+                    )
+                else:
+                    # localsources: bloco chaveado por nome de fonte (ex.: Sun) —
+                    # preenche a estatística dentro de cada entrada de fonte.
+                    for j in idx:
+                        sname = str(source_names[j])
+                        entry = block.get(sname)
+                        if isinstance(entry, dict):
+                            entry["t_antenna_k"] = _quantiles(
+                                np.asarray(T_src.isel(source=j).values, dtype=float)
+                            )
+
+        # Fallback por NOME: garante a estatística de cada fonte local (ex.:
+        # Sun) mesmo com ``source_type`` truncado/ausente.
+        if isinstance(sky.get("localsources"), dict) and sky["localsources"]:
+            name_to_idx = {str(n): j for j, n in enumerate(source_names)}
+            for sname, entry in sky["localsources"].items():
+                if isinstance(entry, dict) and entry.get("t_antenna_k") is None:
+                    j = name_to_idx.get(str(sname))
+                    if j is not None:
                         entry["t_antenna_k"] = _quantiles(
                             np.asarray(T_src.isel(source=j).values, dtype=float)
                         )
@@ -464,8 +493,20 @@ def populate_sky_stats(result: Any, config: dict[str, Any]) -> dict[str, Any]:
                                     )
                                 )
                                 block["flux_jy"] = {"value_jy": _f(flux_w / 1e-26)}
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            _LOGGER.warning(
+                                "Falha ao avaliar fluxo de '%s' no resumo: %s: %s",
+                                sname,
+                                type(exc).__name__,
+                                exc,
+                            )
+                    else:
+                        _LOGGER.warning(
+                            "Fonte local '%s' não encontrada em result.sources "
+                            "(%d fontes) — flux_jy ficará nulo no resumo.",
+                            sname,
+                            len(getattr(result, "sources", []) or []),
+                        )
 
                 # datafile: proveniência
                 if block.get("datafile") is None:

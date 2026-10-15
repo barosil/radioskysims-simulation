@@ -41,7 +41,7 @@ import os
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Generic, TypeVar
+from typing import Any, Final, Generic, TypeVar
 
 import numpy as np
 import xarray as xr
@@ -67,7 +67,7 @@ _SYSTEM_RESERVE_MB = 512.0
 _F64_BYTES = 8
 
 # Fatores de footprint por fonte, em unidades de "tensor principal"
-# (time × frequency × source=1 × polarization=2 × pointing=1):
+# (time × frequency × source=1 × polarization × pointing=1):
 #   - 2 tensores de saída acumulados por fonte (T_antenna + power);
 #   - ~6 tensores intermediários no pico de um único ``TODSimulator.simulate()``
 #     (beam_response, beam_power, flux_at_observer, equivalent_temperature,
@@ -75,6 +75,24 @@ _F64_BYTES = 8
 #     (conservador).
 _OUTPUT_TENSORS = 2
 _PEAK_TENSORS = 6
+
+# Nº de polarizações assumido na estimativa. O feixe do horn do BINGO tem 4
+# polarizações (H/V COPOL/CROSS) — assumir 2 subestimava a saída em 2× e impedia
+# a decisão de streaming a disco (dataset tentava caber inteiro em RAM).
+_DEFAULT_POLARIZATIONS = 4
+"""Polarizações por padrão nas estimativas de memória.
+
+O feixe do horn traz H/V COPOL/CROSS (4 correlações), não 2 — subestimar
+por 2× fazia a saída "caber" na memória e desligava o streaming a disco.
+"""
+
+_DEFAULT_PARALLEL_WORKERS: Final[int] = 8
+"""Nº alvo de chunks executados SIMULTANEAMENTE (padrão).
+
+Ajustável pelo parâmetro ``parallel_workers`` ou pela variável de ambiente
+``RSS_SIM_PARALLEL_WORKERS``; o valor efetivo é sempre limitado pela memória
+orçamentada (ver :meth:`ResourceAwareProcessor.batch_budget_mb`).
+"""
 
 
 def _n_time_steps(time_range: TimeRange) -> int:
@@ -110,9 +128,14 @@ def _n_freq_steps(
     return n_freq
 
 
-def _tensor_mb(n_time: int, n_freq: int, n_sources: int = 1) -> float:
-    """MB de UM tensor float64 (time, freq, source, polarization=2, pointing=1)."""
-    shape = (n_time, n_freq, n_sources, 2, 1)
+def _tensor_mb(
+    n_time: int,
+    n_freq: int,
+    n_sources: int = 1,
+    n_pol: int = _DEFAULT_POLARIZATIONS,
+) -> float:
+    """MB de UM tensor float64 (time, freq, source, polarization, pointing)."""
+    shape = (n_time, n_freq, n_sources, n_pol, 1)
     bytes_ = int(np.prod(shape, dtype=np.int64)) * _F64_BYTES
     return float(bytes_) / (1024 * 1024)
 
@@ -353,6 +376,10 @@ class ResourceAwareProcessor(Generic[T]):
         Se ``None``, detecta automaticamente.
     max_batch_mb:
         Sobrescreve o limite de memória por batch.
+    parallel_workers:
+        Nº alvo de chunks simultâneos (``None`` = padrão/env). Os lotes são
+dimensionados para que ``parallel_workers`` deles caibam juntos no
+orçamento de memória.
     dask_scheduler:
         Scheduler dask a usar: ``"threads"`` (padrão), ``"synchronous"`` ou
         ``"distributed"``. ``"distributed"`` sobe um ``LocalCluster`` +
@@ -374,10 +401,12 @@ class ResourceAwareProcessor(Generic[T]):
         dask_processes: bool | None = None,
         diagnostics_enabled: bool = False,
         progress_callback: Callable[[int, int], None] | None = None,
+        parallel_workers: int | None = None,
         logger: Any | None = None,
     ) -> None:
         self._resources = resources or ProcessingResources.detect()
         self._max_batch_mb = max_batch_mb
+        self._parallel_workers = parallel_workers
         self._dask_scheduler = dask_scheduler
         self._dask_processes = dask_processes
         self._diagnostics_enabled = diagnostics_enabled
@@ -526,6 +555,48 @@ class ResourceAwareProcessor(Generic[T]):
             return self._max_batch_mb
         return self._resources.usable_memory_mb
 
+    @property
+    def parallel_workers(self) -> int:
+        """Nº alvo de chunks executados simultaneamente."""
+        if self._parallel_workers is not None:
+            return max(1, int(self._parallel_workers))
+        target = _DEFAULT_PARALLEL_WORKERS
+        env = os.environ.get("RSS_SIM_PARALLEL_WORKERS")
+        if env:
+            try:
+                target = int(env)
+            except ValueError:
+                pass
+        return max(1, min(target, self._resources.usable_cpu_count))
+
+    def batch_budget_mb(self, single_source_mb: float) -> float:
+        """Orçamento de memória por lote, dimensionado para o paralelismo.
+
+        Sem isso, cada lote era dimensionado para consumir TODO o orçamento
+        de memória (``max_batch_mb == usable_memory_mb``), o que torna
+        ``by_mem = usable_memory_mb / batch_mb`` sempre igual a 1 e reduz o
+        paralelismo efetivo a um único worker — bug observado como
+        ``10 chunks em paralelo (workers=1)``.
+
+        A divisão é feita entre ``min(parallel_workers, orçamento / fonte)``
+        lotes, de forma que todos caibam simultaneamente no orçamento. Se uma
+        única fonte já consome mais que sua cota, a cota é elevada ao custo
+        dela (e o nº de workers cai, respeitando a memória).
+        """
+        if self._max_batch_mb is not None:
+            return float(self._max_batch_mb)
+        budget = self._resources.usable_memory_mb
+        if single_source_mb <= 0:
+            return budget
+        max_by_memory = max(1, int(budget / single_source_mb))
+        n_workers = max(1, min(self.parallel_workers, max_by_memory))
+        per_worker_mb = budget / n_workers
+        # Arredonda para CIMA em múltiplos inteiros de fonte: sem isso um
+        # orçamento de 1322 MB com fontes de 721 MB aceita só 1 fonte por lote
+        # e desperdiça ~45% da memória disponível.
+        n_sources_per_batch = max(1, int(np.ceil(per_worker_mb / single_source_mb)))
+        return max(single_source_mb, n_sources_per_batch * single_source_mb)
+
     # ── Particionamento ───────────────────────────────────────────
 
     def partition_sources(
@@ -564,10 +635,15 @@ class ResourceAwareProcessor(Generic[T]):
             num_channels=num_channels,
         )
 
-        if single_mb > self.max_batch_mb:
+        # Orçamento por lote dimensionado para que ``parallel_workers`` lotes
+        # caibam JUNTOS no orçamento de memória (sem isso o paralelismo
+        # efetivo é sempre 1).
+        limit_mb = self.batch_budget_mb(single_mb)
+
+        if single_mb > limit_mb:
             msg = (
                 f"Cada fonte requer ~{single_mb:.0f} MB, mas o limite "
-                f"do batch é {self.max_batch_mb:.0f} MB. Considere reduzir "
+                f"do batch é {limit_mb:.0f} MB. Considere reduzir "
                 "a resolução temporal, o número de canais ou o tempo de "
                 "simulação."
             )
@@ -581,7 +657,7 @@ class ResourceAwareProcessor(Generic[T]):
         for src in sources:
             src_mb = single_mb  # estimativa uniforme por simplicidade
 
-            if current_mb + src_mb > self.max_batch_mb and current_batch:
+            if current_mb + src_mb > limit_mb and current_batch:
                 # Fecha lote atual
                 batches.append(
                     SourceBatch(
@@ -611,7 +687,8 @@ class ResourceAwareProcessor(Generic[T]):
             n_sources=len(sources),
             n_batches=len(batches),
             single_source_mb=round(single_mb, 1),
-            max_batch_mb=round(self.max_batch_mb, 0),
+            batch_budget_mb=round(limit_mb, 0),
+            parallel_workers=self.parallel_workers,
             cpu_count=self.cpu_count,
         )
 
@@ -814,6 +891,19 @@ class ResourceAwareProcessor(Generic[T]):
         source_ids_all: list[str] = []
 
         try:
+            # ── Caminho PARALELO (streaming em chunks) ────────────────────
+            # Quando há streaming a disco, cada batch é uma tarefa independente
+            # que grava seu próprio ``batch_<i>.nc``. Executamos as tarefas em
+            # paralelo (scheduler dask já configurado) e reabrimos os arquivos
+            # como dataset lazy — o dataset final nunca é materializado em RAM.
+            if batch_output_dir is not None and len(batches) > 1:
+                return self._run_batches_parallel_to_disk(
+                    batches=batches,
+                    simulation_factory=simulation_factory,
+                    batch_output_dir=batch_output_dir,
+                    part_engine=part_engine,
+                )
+
             for batch in batches:
                 self._log.info(
                     "batch_start",
@@ -963,6 +1053,99 @@ class ResourceAwareProcessor(Generic[T]):
 
         finally:
             self._restore_dask()
+
+    # ── Execução PARALELA em chunks (streaming a disco) ──────────
+
+    @staticmethod
+    def _source_ids_from_partial(ds_partial: xr.Dataset, batch: SourceBatch) -> list[str]:
+        """Nomes REAIS das fontes que sobreviveram ao filtro do feixe (N×FWHM).
+
+        Usa a coord ``source`` do parcial quando disponível (o filtro do feixe
+        descarta fontes — renomear por posição em ``batch.sources`` quebraria o
+        alinhamento).
+        """
+        if "source" in ds_partial.coords and "source" in ds_partial.dims:
+            return [str(s) for s in ds_partial.coords["source"].values]
+        return [
+            str(getattr(s, "name", None) or getattr(s, "source_id", f"src_{i}"))
+            for i, s in enumerate(batch.sources)
+        ]
+
+    def _run_batches_parallel_to_disk(
+        self,
+        *,
+        batches: list[SourceBatch],
+        simulation_factory: Callable[[list[SignalSource]], Simulation],
+        batch_output_dir: str | Path,
+        part_engine: str = "h5netcdf",
+    ) -> xr.Dataset:
+        """Executa os batches **em paralelo**, gravando um ``.nc`` por chunk.
+
+        Cada batch é uma tarefa independente (``dask.delayed``) que roda a
+        simulação e grava ``batch_<i>.nc``; os arquivos são reabertos por
+        :meth:`_open_merged` como dataset **lazy** (dask). O paralelismo é
+        limitado por CPU e por memória (um batch por worker), evitando OOM.
+
+        Returns
+        -------
+        xr.Dataset
+            Dataset consolidado lazy, lido dos ``batch_<i>.nc``.
+        """
+        from dask import compute, delayed
+
+        outdir = Path(batch_output_dir)
+        outdir.mkdir(parents=True, exist_ok=True)
+
+        batch_mb = max((b.estimated_mb for b in batches), default=0.0) or 1.0
+        by_mem = max(1, int(self._resources.usable_memory_mb / batch_mb))
+        n_workers = max(1, min(self.parallel_workers, by_mem, len(batches)))
+
+        self._log.info(
+            "processor_parallel_start",
+            n_batches=len(batches),
+            n_workers=n_workers,
+            batch_mb=round(batch_mb, 0),
+        )
+        print(f"\n⚙️  {len(batches)} chunks em paralelo (workers={n_workers}) → {outdir}\n")
+
+        def _one(batch: SourceBatch) -> tuple[int, str]:
+            sim = simulation_factory(batch.sources)
+            result = sim.run()
+            ds_partial = result.dataset
+            fpath = outdir / f"batch_{batch.batch_index:04d}.nc"
+            self._write_partial(ds_partial, fpath, engine=part_engine)
+            self._log.info(
+                "batch_written_to_disk",
+                batch=batch.batch_index + 1,
+                total=len(batches),
+                path=str(fpath),
+            )
+            try:
+                ds_partial.close()
+            except Exception:
+                pass
+            return batch.batch_index, str(fpath)
+
+        tasks = [delayed(_one)(batch) for batch in batches]
+        compute_kwargs: dict[str, Any] = {}
+        if self._dask_scheduler == "threads":
+            compute_kwargs["num_workers"] = n_workers
+        computed = compute(*tasks, **compute_kwargs)
+        results = sorted(computed, key=lambda item: item[0])
+
+        for batch_index, _path in results:
+            self._batch_results.append(
+                BatchResult(
+                    dataset=None,
+                    sources=batches[batch_index].sources,
+                    batch_index=batch_index,
+                    success=True,
+                )
+            )
+        part_files = [path for _idx, path in results]
+
+        self._log.info("processor_parallel_done", n_parts=len(part_files))
+        return self._open_merged(part_files)
 
     @staticmethod
     def _write_partial(

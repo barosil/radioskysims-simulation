@@ -281,12 +281,9 @@ class TODSimulator(BeamHandlingMixin):
             )
             raise ValueError(msg)
 
-        if self.effective_area_m2 is None:
-            msg = (
-                "effective_area_m2 must be provided for absolute radiometric "
-                "conversion of discrete-source flux density to antenna temperature."
-            )
-            raise ValueError(msg)
+        # Área efetiva A_e: override de config ou λ²/Ω_A (Kraus), com Ω_A
+        # integrado do próprio feixe.
+        effective_area = self._resolve_effective_area(freq)
 
         # Fonte não polarizada observada em uma polarização instrumental:
         #
@@ -298,7 +295,7 @@ class TODSimulator(BeamHandlingMixin):
         #   T_A(theta, nu)
         #       = G B(theta, nu) A_e S_nu,obs / (2 k_B)
         antenna_temperature = (
-            self.gain * beam_response * flux_at_observer * self.effective_area_m2 / (2.0 * k_B)
+            self.gain * beam_response * flux_at_observer * effective_area / (2.0 * k_B)
         )
 
         power = k_B * antenna_temperature

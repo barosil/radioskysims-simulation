@@ -237,8 +237,9 @@ class SimulationOrchestratorResult:
         Inclui os blocos ``observer``, ``simulation`` e ``computation``.
         O bloco de computação (dims/chunks/tamanho) é sempre preenchido
         (leitura lazy segura). As estatísticas de céu (T_antenna/fluxo por
-        tipo de fonte) são preenchidas apenas quando o dataset já está
-        materializado (numpy) — ou via ``compute_stats``.
+        tipo de fonte) são computadas por FATIA (source a source) quando
+        ``compute_stats`` é ``True`` (padrão) — baratas mesmo com dataset
+        lazy, pois não materializam o TOD inteiro.
 
         Nota: a chamada **preenche e muta** ``self.config`` in-place
         (efeito colateral idempotente); evite compartilhar esse dict entre
@@ -251,15 +252,9 @@ class SimulationOrchestratorResult:
 
         populate_computation(self.simulation_result, self.config)
 
-        ds = self.simulation_result.dataset
-        try:
-            import dask.array as da
-
-            is_dask = "T_antenna" in ds and isinstance(ds["T_antenna"].data, da.Array)
-        except ImportError:
-            is_dask = False
-
-        if (not is_dask) and (self._events is not None or compute_stats):
+        # Estatísticas de céu (Sol/radiofontes) computadas por FATIA (source a
+        # source): baratas mesmo com dataset lazy (dask), sem materializar o TOD.
+        if compute_stats:
             populate_sky_stats(self.simulation_result, self.config)
 
         return self.config
@@ -1296,7 +1291,9 @@ class Simulation:
                 "time": raw.coords["time"],
                 "frequency": raw.coords["frequency"],
                 "source": ("source", source_ids),
-                "source_type": ("source", source_types),
+                # dtype fixo LARGO: evita truncamento (ex.: "localsource"
+                # cabendo em <U9 quando um batch só tem "satellite").
+                "source_type": ("source", np.asarray(source_types, dtype="<U32")),
             },
             attrs=dict(raw.attrs),
         )

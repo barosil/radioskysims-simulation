@@ -308,3 +308,37 @@ def test_simulation_result_repr_handles_missing_optional_coords() -> None:
     assert "dims={'sample': 2}" in txt
     assert "time='" not in txt
     assert "freq='" not in txt
+
+
+def _truncated_source_type_dataset() -> xr.Dataset:
+    """Reproduz a coord ``source_type`` truncada (<U9) de arquivos salvos."""
+    ds = _dataset()
+    return ds.assign_coords(
+        source_type=("source", np.asarray(["satellite", "localsour"], dtype="<U9"))
+    )
+
+
+def test_populate_sky_stats_tolerates_truncated_source_type() -> None:
+    cfg = _config()
+    result = SimulationResult(
+        dataset=_truncated_source_type_dataset(),
+        sources=[],
+        satellites=[],
+        time_range=TimeRange.from_iso("2026-07-26T00:00:00", "2026-07-26T02:00:00", resolution=600),
+    )
+    populate_sky_stats(result, cfg)
+    sun = cfg["simulation"]["sky"]["localsources"]["Sun"]
+    assert sun["t_antenna_k"]["max"] == pytest.approx(20.0)
+
+
+def test_populate_sky_stats_sun_fallback_without_source_type() -> None:
+    cfg = _config()
+    result = SimulationResult(
+        dataset=_dataset().drop_vars("source_type"),
+        sources=[],
+        satellites=[],
+        time_range=TimeRange.from_iso("2026-07-26T00:00:00", "2026-07-26T02:00:00", resolution=600),
+    )
+    populate_sky_stats(result, cfg)
+    sun = cfg["simulation"]["sky"]["localsources"]["Sun"]
+    assert sun["t_antenna_k"]["max"] == pytest.approx(20.0)

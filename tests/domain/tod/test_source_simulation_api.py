@@ -229,3 +229,48 @@ def test_discrete_source_requires_effective_area_for_absolute_radiometry():
     else:
         msg = "Expected discrete-source simulation to require effective_area_m2."
         raise AssertionError(msg)
+
+
+def test_discrete_source_derives_effective_area_from_beam_omega():
+    """Sem effective_area_m2, A_e = λ²/Ω_A (Ω integrado do feixe)."""
+    from scipy.constants import c, k as k_B
+
+    from radioskysims_beam.domain.beam.models import Beam
+    from radioskysims_core.domain.common.beam_geometry import solid_angle
+
+    fc_hz = 1.4e9
+    angles = np.arange(-90.0, 90.0 + 1e-9, 0.25)
+    amp = np.exp(-0.5 * (angles / 8.0) ** 2)
+    beam_ds = xr.Dataset(
+        {"amplitude": (("polarization", "frequency", "angle"), amp[None, None, :])},
+        coords={
+            "polarization": ["H_COPOL"],
+            "frequency": np.array([fc_hz]),
+            "angle": angles,
+        },
+    )
+    beam_ds["angle"].attrs["units"] = "deg"
+    beam_ds["frequency"].attrs["units"] = "Hz"
+
+    class _Source:
+        def psd(self):
+            da = xr.DataArray(
+                np.array([1.0e-26]),
+                dims="frequency",
+                coords={"frequency": np.array([fc_hz])},
+            )
+            da.attrs["units"] = "W/m²/Hz"
+            return da
+
+        def angle(self):
+            return xr.DataArray(np.array([0.0]), dims="time", coords={"time": np.array([0.0])})
+
+        def range(self):
+            return xr.DataArray(np.array([1.0e6]), dims="time", coords={"time": np.array([0.0])})
+
+    simulator = TODSimulator(beam=Beam(beam_ds), gain=1.0)
+    result = simulator.simulate_from_source(sat=_Source())
+
+    omega = solid_angle(amp, angles)
+    expected = (1.0e-26 * ((c / fc_hz) ** 2 / omega)) / (2.0 * k_B)
+    np.testing.assert_allclose(result["T_antenna"].values, expected, rtol=1.0e-6)
