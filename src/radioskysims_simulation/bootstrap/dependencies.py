@@ -15,16 +15,17 @@ Last modified: 2026-11-05
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from radioskysims_simulation.application.ports.processing import ProcessorPort
-from radioskysims_simulation.infrastructure.processing.resource_processor import (
-    ResourceAwareProcessor,
-    ProcessingResources as InfraProcessingResources,
+from radioskysims_simulation.application.processing_resources import (
+    ProcessingResources,
 )
 from radioskysims_simulation.infrastructure.processing.processor_adapter import (
     ResourceAwareProcessorAdapter,
+)
+from radioskysims_simulation.infrastructure.processing.resource_processor import (
+    ResourceAwareProcessor,
 )
 
 
@@ -90,15 +91,14 @@ class DIContainer:
 
         # Detectar recursos se não fornecidos
         if cpu_count is None or memory_mb is None:
-            resources = InfraProcessingResources.detect(
+            resources = ProcessingResources.detect(
                 cpu_count=cpu_count,
                 memory_mb=memory_mb,
             )
         else:
-            resources = InfraProcessingResources(
+            resources = ProcessingResources(
                 cpu_count=cpu_count,
-                memory_mb=memory_mb,
-                dask_scheduler=dask_scheduler or "threads",
+                available_memory_mb=memory_mb,
             )
 
         # Criar instância de ResourceAwareProcessor
@@ -192,7 +192,7 @@ def configure_default_processor(
 
 __all__ = [
     "DIContainer",
+    "configure_default_processor",
     "get_container",
     "reset_container",
-    "configure_default_processor",
 ]

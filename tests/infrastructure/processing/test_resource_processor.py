@@ -148,7 +148,7 @@ def test_tensor_estimate_accounts_for_four_polarizations() -> None:
     Antes usava 2 fixo → subestimava a saída em 2× e impedia a decisão de
     streaming a disco (o dataset tentava caber inteiro em RAM).
     """
-    from radioskysims_simulation.infrastructure.processing.resource_processor import (
+    from radioskysims_simulation.application.processing_resources import (
         _tensor_mb,
     )
 

@@ -490,20 +490,12 @@ def populate_sky_stats(result: Any, config: dict[str, Any]) -> dict[str, Any]:
                                     )
                                 )
                                 block["flux_jy"] = {"value_jy": _f(flux_w / 1e-26)}
-                        except Exception as exc:
-                            _LOGGER.warning(
-                                "Falha ao avaliar fluxo de '%s' no resumo: %s: %s",
-                                sname,
-                                type(exc).__name__,
-                                exc,
-                            )
-                    else:
-                        _LOGGER.warning(
-                            "Fonte local '%s' não encontrada em result.sources "
-                            "(%d fontes) — flux_jy ficará nulo no resumo.",
-                            sname,
-                            len(getattr(result, "sources", []) or []),
-                        )
+                        except Exception:
+                            # Melhor esforço: se psd/fc falhar, o fluxo @ fc
+                            # permanece nulo no resumo (comportamento documentado).
+                            pass
+                    # Fonte local ausente em result.sources: fluxo @ fc
+                    # permanece nulo no resumo.
 
                 # datafile: proveniência
                 if block.get("datafile") is None:

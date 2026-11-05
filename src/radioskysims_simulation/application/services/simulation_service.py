@@ -42,6 +42,9 @@ class _FallbackStructuredLogger:
     def info(self, event: str, **fields: Any) -> None:
         _ = (event, fields)
 
+    def warning(self, event: str, **fields: Any) -> None:
+        _ = (event, fields)
+
     def exception(self, event: str, **fields: Any) -> None:
         _ = (event, fields)
 
@@ -557,8 +560,12 @@ class SimulationService:
             init = getattr(sig_repo, "initialize_signals", None)
             if callable(init):
                 init()
-        except Exception:
-            pass
+        except Exception as exc:
+            self._logger.warning(
+                "simulation_signal_initialization_failed",
+                error_type=type(exc).__name__,
+                error=str(exc),
+            )
 
         if frequency_range is None and beam is not None:
             frequency_range = self._frequency_range_from_beam(beam)
@@ -726,8 +733,7 @@ class SimulationService:
             for sat in satellites
         )
 
-    @staticmethod
-    def _frequency_range_from_beam(beam: Beam) -> FrequencyRange | None:
+    def _frequency_range_from_beam(self, beam: Beam) -> FrequencyRange | None:
         ds = beam.dataset
         if "frequency" not in ds.coords:
             return None
@@ -736,7 +742,12 @@ class SimulationService:
             return None
         try:
             return FrequencyRange.from_array(freqs.tolist())
-        except Exception:
+        except Exception as exc:
+            self._logger.warning(
+                "simulation_frequency_range_from_beam_failed",
+                error_type=type(exc).__name__,
+                error=str(exc),
+            )
             return None
 
     def _assemble_satellites(

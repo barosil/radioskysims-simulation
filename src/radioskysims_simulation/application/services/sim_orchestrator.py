@@ -37,6 +37,10 @@ from radioskysims_sources.domain.signal import (
     SignalRepositoryPort,
 )
 
+from radioskysims_simulation.application.ports.processing import (
+    ProcessingResources,
+    ProcessorPort,
+)
 from radioskysims_simulation.application.services.simulation_service import (
     SimulationService,
 )
@@ -52,10 +56,6 @@ from radioskysims_simulation.domain.simulation.grids import (
     _compute_time_grid,
 )
 from radioskysims_simulation.domain.tod import TODSimulator
-from radioskysims_simulation.application.ports.processing import (
-    ProcessorPort,
-    ProcessingResources,
-)
 
 
 class _NoopLogger:
@@ -389,7 +389,6 @@ class SimOrchestrator:
         return self._ctx
 
     @property
-    @property
     def processor(self) -> ProcessorPort | None:
         """Processor computacional associado ao orquestrador."""
         return self._processor
@@ -423,13 +422,15 @@ class SimOrchestrator:
         if self._processor is not None:
             return self._processor
 
-        # Import aqui para evitar circular dependency
+        # NOTE (T1.6): ResourceAwareProcessor é um adapter concreto de
+        # infraestrutura; o composition root (bootstrap/dependencies.py) injeta
+        # o ProcessorPort via DI. Este fallback local mantém a criação sob
+        # demanda para compatibilidade com código legado.
         from radioskysims_simulation.infrastructure.processing.resource_processor import (
             ResourceAwareProcessor,
-            ProcessingResources as InfraProcessingResources,
         )
 
-        resources = InfraProcessingResources.detect(
+        resources = ProcessingResources.detect(
             cpu_count=cpu_count,
             memory_mb=memory_mb,
         )
@@ -573,7 +574,7 @@ class SimOrchestrator:
         telescope: str = "default",
         *,
         settings_file: str | Path | None = None,
-        processor: ResourceAwareProcessor | None = None,
+        processor: ProcessorPort | None = None,
     ) -> SimOrchestrator:
         """Cria um :class:`SimOrchestrator` usando um arquivo de settings.
 
@@ -903,7 +904,13 @@ class SimOrchestrator:
                 sat_repo.tr = time_range
 
             except AttributeError:
-                pass
+                self._logger.info(
+                    "sim_orchestrator_satellite_repo_tr_unsupported",
+                    detail=(
+                        "repositório de satélites não aceita o atributo 'tr'; "
+                        "epoch da simulação não será propagada ao repositório"
+                    ),
+                )
 
         # ----------------------------------------------------------
         # Logging inicial
@@ -1390,8 +1397,12 @@ class SimOrchestrator:
                 )
                 if np.isfinite(_fwhm_mean) and _fwhm_mean > 0:
                     _beam_fwhm_deg = _fwhm_mean
-            except Exception:
-                pass
+            except Exception as exc:
+                self._logger.warning(
+                    "sim_orchestrator_beam_fwhm_failed",
+                    error_type=type(exc).__name__,
+                    error=str(exc),
+                )
 
         # Monta fontes locais
         source_assembler = svc._source_assembler
@@ -1519,7 +1530,7 @@ class SimOrchestrator:
         # dataset lazy (dask) — memória limitada a um batch por vez.
         from pathlib import Path as _Path
 
-        from radioskysims_simulation.infrastructure.processing.resource_processor import (
+        from radioskysims_simulation.application.processing_resources import (
             MemoryEstimator,
         )
 

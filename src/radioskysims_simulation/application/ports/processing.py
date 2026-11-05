@@ -15,26 +15,16 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass
-from typing import Any, Generic, TypeVar
+from typing import Generic, TypeVar
 
-import numpy as np
-import xarray as xr
-from radioskysims_core.domain.common import FrequencyRange, TimeRange
 from radioskysims_sources.domain.signal_source import SignalSource
 
-from radioskysims_simulation.domain.simulation import Simulation, SimulationResult
+from radioskysims_simulation.application.processing_resources import (
+    ProcessingResources,
+)
+from radioskysims_simulation.domain.simulation import SimulationResult
 
 T = TypeVar("T")
-
-
-@dataclass
-class ProcessingResources:
-    """Descrição de recursos disponíveis para processamento."""
-
-    cpu_count: int
-    memory_mb: float
-    dask_scheduler: str
 
 
 class ProcessorPort(ABC, Generic[T]):
@@ -100,9 +90,7 @@ class ProcessorPort(ABC, Generic[T]):
         ...
 
     @abstractmethod
-    def partition_sources(
-        self, sources: Sequence[SignalSource]
-    ) -> list[list[SignalSource]]:
+    def partition_sources(self, sources: Sequence[SignalSource]) -> list[list[SignalSource]]:
         """
         Divide fontes em batches respeitando limites de memória.
 
