@@ -23,6 +23,9 @@ from radioskysims_simulation.infrastructure.processing.resource_processor import
     ResourceAwareProcessor,
     ProcessingResources as InfraProcessingResources,
 )
+from radioskysims_simulation.infrastructure.processing.processor_adapter import (
+    ResourceAwareProcessorAdapter,
+)
 
 
 class DIContainer:
@@ -30,9 +33,7 @@ class DIContainer:
 
     def __init__(self) -> None:
         """Inicializa o container com defaults."""
-        self._processor_factory: (
-            type[ProcessorPort] | None
-        ) = ResourceAwareProcessor
+        self._processor_factory: type[ProcessorPort] | None = None
         self._processor_instance: ProcessorPort | None = None
 
     def set_processor_factory(
@@ -87,9 +88,6 @@ class DIContainer:
         if self._processor_instance is not None:
             return self._processor_instance
 
-        if self._processor_factory is None:
-            raise ValueError("Nenhuma factory de ProcessorPort foi configurada.")
-
         # Detectar recursos se não fornecidos
         if cpu_count is None or memory_mb is None:
             resources = InfraProcessingResources.detect(
@@ -103,8 +101,8 @@ class DIContainer:
                 dask_scheduler=dask_scheduler or "threads",
             )
 
-        # Criar instância
-        processor = self._processor_factory(
+        # Criar instância de ResourceAwareProcessor
+        processor_impl = ResourceAwareProcessor(
             resources=resources,
             max_batch_mb=max_batch_mb,
             dask_scheduler=dask_scheduler or "threads",
@@ -113,8 +111,11 @@ class DIContainer:
             logger=logger,
         )
 
-        self._processor_instance = processor
-        return processor
+        # Wrap com adapter para cumprir ProcessorPort
+        processor_port = ResourceAwareProcessorAdapter(processor_impl)
+
+        self._processor_instance = processor_port
+        return processor_port
 
     def clear_processor(self) -> None:
         """Limpa a instância de processador (para testes ou reload)."""
