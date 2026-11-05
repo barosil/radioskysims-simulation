@@ -52,9 +52,9 @@ from radioskysims_simulation.domain.simulation.grids import (
     _compute_time_grid,
 )
 from radioskysims_simulation.domain.tod import TODSimulator
-from radioskysims_simulation.infrastructure.processing.resource_processor import (
+from radioskysims_simulation.application.ports.processing import (
+    ProcessorPort,
     ProcessingResources,
-    ResourceAwareProcessor,
 )
 
 
@@ -157,7 +157,7 @@ class SimOrchestrator:
         self,
         context: SimulationContext,
         *,
-        processor: ResourceAwareProcessor | None = None,
+        processor: ProcessorPort | None = None,
     ) -> None:
         self._ctx = context
         # Corte de fluxo (Jy) para o catálogo de rádio — vem do settings.toml
@@ -188,7 +188,7 @@ class SimOrchestrator:
 
         # Processor opcional injetado pelo usuário/composition root.
         # Quando None, o caminho legado pode criar um processor sob demanda.
-        self._processor: ResourceAwareProcessor | None = processor
+        self._processor: ProcessorPort | None = processor
         self._neutral_hydrogen_map_generator = getattr(
             context,
             "neutral_hydrogen_map_generator",
@@ -389,17 +389,16 @@ class SimOrchestrator:
         return self._ctx
 
     @property
-    def processor(self) -> ResourceAwareProcessor | None:
+    @property
+    def processor(self) -> ProcessorPort | None:
         """Processor computacional associado ao orquestrador."""
         return self._processor
 
     @property
     def dashboard_url(self) -> str | None:
         """URL do dashboard do Processor, quando disponível."""
-
         if self._processor is None:
             return None
-
         return self._processor.dashboard_url
 
     def _resolve_processor(
@@ -411,18 +410,26 @@ class SimOrchestrator:
         dask_scheduler: str | None,
         dask_processes: bool | None,
         processor_diagnostics: bool,
-    ) -> ResourceAwareProcessor:
+    ) -> ProcessorPort:
         """Retorna o Processor injetado ou cria um automaticamente.
 
-        Quando um ``ResourceAwareProcessor`` foi fornecido ao construtor,
-        ele é reutilizado. Caso contrário, os recursos são detectados e um
-        processor é criado sob demanda, preservando o comportamento legado.
-        """
+        Quando um ``ProcessorPort`` foi fornecido ao construtor,
+        ele é reutilizado. Caso contrário, um processor é criado sob demanda.
 
+        NOTE (T1.6): Este método será removido quando bootstrap/dependencies.py
+        injetar ProcessorPort via DI container. Por enquanto, mantido para
+        compatibilidade com código legado.
+        """
         if self._processor is not None:
             return self._processor
 
-        resources = ProcessingResources.detect(
+        # Import aqui para evitar circular dependency
+        from radioskysims_simulation.infrastructure.processing.resource_processor import (
+            ResourceAwareProcessor,
+            ProcessingResources as InfraProcessingResources,
+        )
+
+        resources = InfraProcessingResources.detect(
             cpu_count=cpu_count,
             memory_mb=memory_mb,
         )

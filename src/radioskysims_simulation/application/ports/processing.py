@@ -76,6 +76,12 @@ class ProcessorPort(ABC, Generic[T]):
         """Número de workers paralelos recomendados."""
         ...
 
+    @property
+    @abstractmethod
+    def dashboard_url(self) -> str | None:
+        """URL do dashboard de monitoramento, se disponível (ex: Dask dashboard)."""
+        ...
+
     @abstractmethod
     def batch_budget_mb(self, single_source_mb: float) -> float:
         """
