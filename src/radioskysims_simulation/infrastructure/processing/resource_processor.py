@@ -362,34 +362,34 @@ class BatchResult:
 class ResourceAwareProcessor(Generic[T]):
     """Processa simulações de forma consciente de recursos.
 
-    Características:
-    - Detecta CPUs e memória disponível
-    - Divide o workload em batches seguros para memória
-    - Configura o scheduler dask apropriadamente
-    - Executa cada batch serialmente (evita contenção)
-    - Consolida resultados parciais com merge seguro
+        Características:
+        - Detecta CPUs e memória disponível
+        - Divide o workload em batches seguros para memória
+        - Configura o scheduler dask apropriadamente
+        - Executa cada batch serialmente (evita contenção)
+        - Consolida resultados parciais com merge seguro
 
-    Parameters
-    ----------
-    resources:
-        Recursos detectados ou configurados manualmente.
-        Se ``None``, detecta automaticamente.
-    max_batch_mb:
-        Sobrescreve o limite de memória por batch.
-    parallel_workers:
-        Nº alvo de chunks simultâneos (``None`` = padrão/env). Os lotes são
-dimensionados para que ``parallel_workers`` deles caibam juntos no
-orçamento de memória.
-    dask_scheduler:
-        Scheduler dask a usar: ``"threads"`` (padrão), ``"synchronous"`` ou
-        ``"distributed"``. ``"distributed"`` sobe um ``LocalCluster`` +
-        ``Client`` e registra o endereço do dashboard em :attr:`dashboard_url`.
-    dask_processes:
-        Estratégia do scheduler distribuído: ``None`` (padrão) → workers em
-        processos separados; ``True`` → processos; ``False`` → 1 worker com
-        threads (menos overhead de memória). Ver docstring do módulo.
-    logger:
-        Logger para eventos do processador.
+        Parameters
+        ----------
+        resources:
+            Recursos detectados ou configurados manualmente.
+            Se ``None``, detecta automaticamente.
+        max_batch_mb:
+            Sobrescreve o limite de memória por batch.
+        parallel_workers:
+            Nº alvo de chunks simultâneos (``None`` = padrão/env). Os lotes são
+    dimensionados para que ``parallel_workers`` deles caibam juntos no
+    orçamento de memória.
+        dask_scheduler:
+            Scheduler dask a usar: ``"threads"`` (padrão), ``"synchronous"`` ou
+            ``"distributed"``. ``"distributed"`` sobe um ``LocalCluster`` +
+            ``Client`` e registra o endereço do dashboard em :attr:`dashboard_url`.
+        dask_processes:
+            Estratégia do scheduler distribuído: ``None`` (padrão) → workers em
+            processos separados; ``True`` → processos; ``False`` → 1 worker com
+            threads (menos overhead de memória). Ver docstring do módulo.
+        logger:
+            Logger para eventos do processador.
     """
 
     def __init__(

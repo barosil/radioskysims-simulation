@@ -14,7 +14,6 @@ Last modified: 2026-07-28
 from __future__ import annotations
 
 import json
-import logging
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -37,8 +36,6 @@ from radioskysims_simulation.domain.simulation.transits import (
 
 if TYPE_CHECKING:
     from radioskysims_simulation.domain.tod import TODSimulator
-
-logger = logging.getLogger(__name__)
 
 _VALID_SOURCE_TYPES: frozenset[str] = frozenset(
     {
@@ -700,11 +697,6 @@ class SimulationResult:
         cacheado em ``self.dataset``.
         """
         if compute and self._dataset_is_dask():
-            logger.warning(
-                "persist: dataset lazy (dask) será materializado antes da escrita "
-                "(~%.0f MB). Cálculo feito uma única vez e reutilizado.",
-                self._estimate_memory_mb(),
-            )
             self.compute()
 
     def save(
@@ -886,7 +878,6 @@ class SimulationResult:
         # mode="w" sobre arquivo existente pode travar (lock residual de outra
         # execução/kernel). Remove o arquivo antes de gravar para evitar o hang.
         if mode == "w" and path_p.exists():
-            logger.info("to_hdf5: removendo arquivo existente %s (mode='w')", path_p)
             try:
                 path_p.unlink()
             except OSError as exc:
@@ -1188,15 +1179,6 @@ class Simulation:
                         n_skipped += 1
                         continue
                 _filtered.append((src_name, angle_boresight, source))
-            if n_skipped > 0:
-                logger = getattr(self._tod_simulator, "_logger", None)
-                if logger is not None:
-                    logger.info(
-                        "sources_filtered_by_beam",
-                        total=len(boresight_list),
-                        skipped=n_skipped,
-                        threshold_deg=self._beam_fwhm_deg * self._fwhm_factor,
-                    )
             boresight_list = _filtered
 
         if not boresight_list:

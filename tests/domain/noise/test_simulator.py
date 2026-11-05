@@ -49,14 +49,17 @@ class TestNoiseSimulatorBasic:
         freq = np.linspace(1e9, 2e9, 100)
         power = np.ones((1000, 100))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator = NoiseSimulator(rng_seed=0)
         tod_noisy = simulator.simulate(tod, tsys=100, bandwidth=1e8, time_constant=1.0)
 
-        noise = tod_noisy['power'] - tod['power']
+        noise = tod_noisy["power"] - tod["power"]
         # Média deve estar perto de zero (permitindo flutuação estatística)
         assert np.abs(noise.mean()) < 1.0
         # Desvio padrão deve estar no intervalo esperado pela fórmula normalizada
@@ -68,9 +71,12 @@ class TestNoiseSimulatorBasic:
         freq = np.linspace(1e9, 2e9, 5)
         power = np.ones((10, 5))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator = NoiseSimulator(rng_seed=42)
         result = simulator.simulate(tod, tsys=100, bandwidth=1e8, time_constant=1.0)
@@ -83,17 +89,20 @@ class TestNoiseSimulatorBasic:
         freq = np.linspace(1e9, 2e9, 5)
         power = np.ones((10, 5))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
-        original_power = tod['power'].copy()
+        original_power = tod["power"].copy()
 
         simulator = NoiseSimulator(rng_seed=42)
         simulator.simulate(tod, tsys=100, bandwidth=1e8, time_constant=1.0)
 
         # TOD original deve ser inalterado
-        assert np.allclose(tod['power'].values, original_power.values)
+        assert np.allclose(tod["power"].values, original_power.values)
 
     def test_output_different_from_input(self):
         """Saída é diferente da entrada (ruído adicionado)."""
@@ -101,14 +110,17 @@ class TestNoiseSimulatorBasic:
         freq = np.linspace(1e9, 2e9, 5)
         power = np.ones((10, 5))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator = NoiseSimulator(rng_seed=42)
         tod_noisy = simulator.simulate(tod, tsys=100, bandwidth=1e8, time_constant=1.0)
 
-        assert not np.allclose(tod['power'].values, tod_noisy['power'].values)
+        assert not np.allclose(tod["power"].values, tod_noisy["power"].values)
 
 
 class TestNoiseSimulatorProperties:
@@ -120,14 +132,17 @@ class TestNoiseSimulatorProperties:
         freq = np.linspace(1e9, 2e9, 100)
         power = np.zeros((1000, 100))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator = NoiseSimulator(rng_seed=42)
         tod_noisy = simulator.simulate(tod, tsys=100, bandwidth=1e8, time_constant=1.0)
 
-        noise = tod_noisy['power'].values
+        noise = tod_noisy["power"].values
         assert np.abs(noise.mean()) < 0.1
 
     def test_noise_std_matches_formula(self):
@@ -136,9 +151,12 @@ class TestNoiseSimulatorProperties:
         freq = np.linspace(1e9, 2e9, 100)
         power = np.zeros((1000, 100))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         tsys = 100.0
         bandwidth = 1e8
@@ -149,9 +167,11 @@ class TestNoiseSimulatorProperties:
         expected_std = tsys / np.sqrt((bandwidth / bandwidth_ref) * time_constant)
 
         simulator = NoiseSimulator(rng_seed=42)
-        tod_noisy = simulator.simulate(tod, tsys=tsys, bandwidth=bandwidth, time_constant=time_constant)
+        tod_noisy = simulator.simulate(
+            tod, tsys=tsys, bandwidth=bandwidth, time_constant=time_constant
+        )
 
-        actual_std = tod_noisy['power'].std().item()
+        actual_std = tod_noisy["power"].std().item()
 
         # Tolerância: ~5% (ruído estatístico)
         assert np.abs(actual_std - expected_std) / expected_std < 0.05
@@ -162,9 +182,12 @@ class TestNoiseSimulatorProperties:
         freq = np.linspace(1e9, 2e9, 50)
         power = np.ones((100, 50))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator1 = NoiseSimulator(rng_seed=42)
         result1 = simulator1.simulate(tod.copy(), tsys=100, bandwidth=1e8, time_constant=1.0)
@@ -172,7 +195,7 @@ class TestNoiseSimulatorProperties:
         simulator2 = NoiseSimulator(rng_seed=42)
         result2 = simulator2.simulate(tod.copy(), tsys=100, bandwidth=1e8, time_constant=1.0)
 
-        assert np.allclose(result1['power'].values, result2['power'].values)
+        assert np.allclose(result1["power"].values, result2["power"].values)
 
     def test_different_seeds_produce_different_noise(self):
         """Diferentes seeds produzem ruído diferente."""
@@ -180,9 +203,12 @@ class TestNoiseSimulatorProperties:
         freq = np.linspace(1e9, 2e9, 50)
         power = np.ones((100, 50))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator1 = NoiseSimulator(rng_seed=42)
         result1 = simulator1.simulate(tod.copy(), tsys=100, bandwidth=1e8, time_constant=1.0)
@@ -190,7 +216,7 @@ class TestNoiseSimulatorProperties:
         simulator2 = NoiseSimulator(rng_seed=123)
         result2 = simulator2.simulate(tod.copy(), tsys=100, bandwidth=1e8, time_constant=1.0)
 
-        assert not np.allclose(result1['power'].values, result2['power'].values)
+        assert not np.allclose(result1["power"].values, result2["power"].values)
 
 
 class TestNoiseSimulatorInputValidation:
@@ -201,9 +227,7 @@ class TestNoiseSimulatorInputValidation:
         time = np.arange(10)
         freq = np.linspace(1e9, 2e9, 5)
 
-        tod = xr.Dataset(
-            coords={'time': time, 'frequency': freq}
-        )
+        tod = xr.Dataset(coords={"time": time, "frequency": freq})
 
         simulator = NoiseSimulator(rng_seed=42)
         with pytest.raises(KeyError, match="TOD deve conter variável 'power'"):
@@ -215,9 +239,12 @@ class TestNoiseSimulatorInputValidation:
         freq = np.linspace(1e9, 2e9, 5)
         power = np.ones(10)  # 1D, deveria ser 2D
 
-        tod = xr.Dataset({
-            'power': ('time', power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": ("time", power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator = NoiseSimulator(rng_seed=42)
         with pytest.raises(ValueError, match="'power' deve ser 2D"):
@@ -229,9 +256,12 @@ class TestNoiseSimulatorInputValidation:
         freq = np.linspace(1e9, 2e9, 5)
         power = np.ones((10, 5))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator = NoiseSimulator(rng_seed=42)
 
@@ -247,9 +277,12 @@ class TestNoiseSimulatorInputValidation:
         freq = np.linspace(1e9, 2e9, 5)
         power = np.ones((10, 5))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator = NoiseSimulator(rng_seed=42)
 
@@ -265,9 +298,12 @@ class TestNoiseSimulatorInputValidation:
         freq = np.linspace(1e9, 2e9, 5)
         power = np.ones((10, 5))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator = NoiseSimulator(rng_seed=42)
 
@@ -287,17 +323,20 @@ class TestNoiseSimulatorScaling:
         freq = np.linspace(1e9, 2e9, 50)
         power = np.zeros((100, 50))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator1 = NoiseSimulator(rng_seed=42)
         result1 = simulator1.simulate(tod.copy(), tsys=50, bandwidth=1e8, time_constant=1.0)
-        std1 = result1['power'].std().item()
+        std1 = result1["power"].std().item()
 
         simulator2 = NoiseSimulator(rng_seed=42)
         result2 = simulator2.simulate(tod.copy(), tsys=100, bandwidth=1e8, time_constant=1.0)
-        std2 = result2['power'].std().item()
+        std2 = result2["power"].std().item()
 
         # T_sys dobra → desvio padrão dobra
         assert std2 > std1
@@ -308,17 +347,20 @@ class TestNoiseSimulatorScaling:
         freq = np.linspace(1e9, 2e9, 50)
         power = np.zeros((100, 50))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator1 = NoiseSimulator(rng_seed=42)
         result1 = simulator1.simulate(tod.copy(), tsys=100, bandwidth=1e8, time_constant=1.0)
-        std1 = result1['power'].std().item()
+        std1 = result1["power"].std().item()
 
         simulator2 = NoiseSimulator(rng_seed=42)
         result2 = simulator2.simulate(tod.copy(), tsys=100, bandwidth=4e8, time_constant=1.0)
-        std2 = result2['power'].std().item()
+        std2 = result2["power"].std().item()
 
         # Bandwidth aumenta → desvio padrão diminui
         assert std2 < std1
@@ -329,17 +371,20 @@ class TestNoiseSimulatorScaling:
         freq = np.linspace(1e9, 2e9, 50)
         power = np.zeros((100, 50))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator1 = NoiseSimulator(rng_seed=42)
         result1 = simulator1.simulate(tod.copy(), tsys=100, bandwidth=1e8, time_constant=0.5)
-        std1 = result1['power'].std().item()
+        std1 = result1["power"].std().item()
 
         simulator2 = NoiseSimulator(rng_seed=42)
         result2 = simulator2.simulate(tod.copy(), tsys=100, bandwidth=1e8, time_constant=2.0)
-        std2 = result2['power'].std().item()
+        std2 = result2["power"].std().item()
 
         # time_constant aumenta → desvio padrão diminui
         assert std2 < std1
@@ -354,14 +399,17 @@ class TestNoiseSimulatorEdgeCases:
         freq = np.linspace(1e9, 2e9, 50)
         power = np.ones((1, 50))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator = NoiseSimulator(rng_seed=42)
         result = simulator.simulate(tod, tsys=100, bandwidth=1e8, time_constant=1.0)
 
-        assert result['power'].shape == (1, 50)
+        assert result["power"].shape == (1, 50)
 
     def test_single_frequency(self):
         """Funciona com single frequency."""
@@ -369,14 +417,17 @@ class TestNoiseSimulatorEdgeCases:
         freq = np.array([1.4e9])
         power = np.ones((100, 1))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator = NoiseSimulator(rng_seed=42)
         result = simulator.simulate(tod, tsys=100, bandwidth=1e8, time_constant=1.0)
 
-        assert result['power'].shape == (100, 1)
+        assert result["power"].shape == (100, 1)
 
     def test_large_array(self):
         """Funciona com array grande."""
@@ -384,14 +435,17 @@ class TestNoiseSimulatorEdgeCases:
         freq = np.linspace(1e9, 2e9, 1000)
         power = np.ones((10000, 1000))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator = NoiseSimulator(rng_seed=42)
         result = simulator.simulate(tod, tsys=100, bandwidth=1e8, time_constant=1.0)
 
-        assert result['power'].shape == (10000, 1000)
+        assert result["power"].shape == (10000, 1000)
 
 
 class TestNoiseSimulatorIntegration:
@@ -403,15 +457,18 @@ class TestNoiseSimulatorIntegration:
         freq = np.linspace(1e9, 2e9, 5)
         power = np.ones((10, 5))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator = NoiseSimulator(rng_seed=42)
         result = simulator.simulate(tod, tsys=100, bandwidth=1e8, time_constant=1.0)
 
-        assert np.allclose(result['time'].values, time)
-        assert np.allclose(result['frequency'].values, freq)
+        assert np.allclose(result["time"].values, time)
+        assert np.allclose(result["frequency"].values, freq)
 
     def test_preserves_other_variables(self):
         """Preserva outras variáveis do dataset."""
@@ -420,16 +477,19 @@ class TestNoiseSimulatorIntegration:
         power = np.ones((10, 5))
         flags = np.zeros((10, 5), dtype=bool)
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-            'flags': (('time', 'frequency'), flags),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+                "flags": (("time", "frequency"), flags),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator = NoiseSimulator(rng_seed=42)
         result = simulator.simulate(tod, tsys=100, bandwidth=1e8, time_constant=1.0)
 
-        assert 'flags' in result.data_vars
-        assert np.allclose(result['flags'].values, flags)
+        assert "flags" in result.data_vars
+        assert np.allclose(result["flags"].values, flags)
 
     def test_multiple_simulations_independent(self):
         """Múltiplas simulações são independentes."""
@@ -437,9 +497,12 @@ class TestNoiseSimulatorIntegration:
         freq = np.linspace(1e9, 2e9, 50)
         power = np.ones((100, 50))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         simulator = NoiseSimulator(rng_seed=42)
 
@@ -448,7 +511,7 @@ class TestNoiseSimulatorIntegration:
 
         # Diferentes chamadas devem produzir ruído diferente
         # (porque o RNG foi avançado entre as chamadas)
-        assert not np.allclose(result1['power'].values, result2['power'].values)
+        assert not np.allclose(result1["power"].values, result2["power"].values)
 
     def test_realistic_workflow(self):
         """Workflow realista: criar TOD, simular ruído, validar."""
@@ -457,31 +520,29 @@ class TestNoiseSimulatorIntegration:
         nfreq = 64
         time = np.arange(ntime)
         freq = np.linspace(1.4e9, 1.5e9, nfreq)
-        
+
         # TOD sem ruído
         power = np.ones((ntime, nfreq)) * 10.0  # 10 mJy/beam
-        
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
-        
+
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
+
         # Simular com parâmetros realistas
         # Tsys = 30 K (bom receptor de radiotelescópio)
         # Bandwidth = 10 MHz
         # Integration time = 1 s
         simulator = NoiseSimulator(rng_seed=12345)
-        tod_noisy = simulator.simulate(
-            tod,
-            tsys=30.0,
-            bandwidth=10e6,
-            time_constant=1.0
-        )
-        
+        tod_noisy = simulator.simulate(tod, tsys=30.0, bandwidth=10e6, time_constant=1.0)
+
         # Validar
-        noise = tod_noisy['power'] - tod['power']
+        noise = tod_noisy["power"] - tod["power"]
         bandwidth_ref = 1e8  # Normalização padrão
         expected_std = 30.0 / np.sqrt((10e6 / bandwidth_ref) * 1.0)
-        
+
         # Tolerância maior para flutuação estatística com amostra pequena
         assert abs(noise.mean().item()) < 1.0
         assert abs(noise.std().item() - expected_std) / expected_std < 0.05

@@ -171,6 +171,8 @@ def test_make_map_rejects_missing_temperature() -> None:
             frequency_hz=1.0e9,
             nside=8,
         )
+
+
 def test_make_map_accepts_pointing_coordinates_in_degrees() -> None:
     time = np.array(
         [

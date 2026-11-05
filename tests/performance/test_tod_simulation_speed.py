@@ -30,11 +30,17 @@ def test_tod_simulator_performance():
             self._freq = xr.DataArray(freqs, dims=("frequency",), coords={"frequency": freqs})
             times = np.arange(n_time).astype(float)
             # angle in radians
-            self._angle = xr.DataArray(np.linspace(0.0, np.pi, n_time), dims=("time",), coords={"time": times})
+            self._angle = xr.DataArray(
+                np.linspace(0.0, np.pi, n_time), dims=("time",), coords={"time": times}
+            )
             self._range = xr.DataArray(np.full(n_time, 1e6), dims=("time",), coords={"time": times})
 
         def psd(self):
-            da = xr.DataArray(np.ones_like(self._freq.values), dims=("frequency",), coords={"frequency": self._freq.values})
+            da = xr.DataArray(
+                np.ones_like(self._freq.values),
+                dims=("frequency",),
+                coords={"frequency": self._freq.values},
+            )
             da.attrs["units"] = "W/Hz"
             return da
 
@@ -53,16 +59,20 @@ def test_tod_simulator_performance():
             freq_vals = np.asarray(frequency.values)
             ang_vals = np.asarray(angle.values)
             amp = np.exp(-ang_vals / np.pi)[:, None] * np.ones((1, freq_vals.size))
-            return xr.DataArray(amp, dims=("time", "frequency"), coords={"time": angle.coords["time"], "frequency": frequency.values})
+            return xr.DataArray(
+                amp,
+                dims=("time", "frequency"),
+                coords={"time": angle.coords["time"], "frequency": frequency.values},
+            )
 
     sat = SimpleSat(N_SAMPLES, FREQS)
     beam = SimpleBeam()
 
     sim = TODSimulator(
- 	   beam=beam,
-   	gain=1.0,
-   	 effective_area_m2=1.0,
-	)
+        beam=beam,
+        gain=1.0,
+        effective_area_m2=1.0,
+    )
 
     # Usar prof.runcall para evitar conflito com pytest-cov
     prof = cProfile.Profile()
@@ -80,4 +90,3 @@ def test_tod_simulator_performance():
 
     assert ds_check["data"].size == 1_000_000
     assert elapsed < 5.0
-

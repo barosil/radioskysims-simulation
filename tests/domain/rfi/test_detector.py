@@ -47,9 +47,12 @@ class TestRFIDetectorBasic:
         # Injetar RFI (10x amplificado)
         power[50:60, 30:35] *= 10
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         detector = RFIDetector(threshold_sigma=3.0)
         events = detector.detect(tod)
@@ -64,9 +67,12 @@ class TestRFIDetectorBasic:
         freq = np.linspace(1e9, 2e9, 10)
         power = np.random.normal(1.0, 0.005, (10, 10))  # Variância muito baixa
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         detector = RFIDetector(threshold_sigma=10.0)  # Threshold bem alto
         events = detector.detect(tod)
@@ -81,9 +87,12 @@ class TestRFIDetectorBasic:
         power = np.random.normal(1.0, 0.1, (10, 5))
         power[5, 2] *= 100  # Spike forte
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         detector = RFIDetector(threshold_sigma=3.0)
         events = detector.detect(tod)
@@ -103,19 +112,22 @@ class TestRFIDetectorProperties:
         power = np.random.normal(1.0, 0.1, (10, 5))
         power[5, 2] *= 100
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         detector = RFIDetector(threshold_sigma=3.0)
         events = detector.detect(tod)
 
         if events:
             event = events[0]
-            assert hasattr(event, 'time_idx')
-            assert hasattr(event, 'freq_idx')
-            assert hasattr(event, 'power')
-            assert hasattr(event, 'severity')
+            assert hasattr(event, "time_idx")
+            assert hasattr(event, "freq_idx")
+            assert hasattr(event, "power")
+            assert hasattr(event, "severity")
 
     def test_event_indices_valid(self):
         """Índices dos eventos são válidos."""
@@ -125,9 +137,12 @@ class TestRFIDetectorProperties:
         power = np.random.normal(1.0, 0.1, (n_time, n_freq))
         power[10:12, 7:9] *= 50
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         detector = RFIDetector(threshold_sigma=3.0)
         events = detector.detect(tod)
@@ -143,9 +158,12 @@ class TestRFIDetectorProperties:
         power = np.random.normal(1.0, 0.1, (50, 25))
         power[25:30, 12:15] *= 20
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         threshold = 4.0
         detector = RFIDetector(threshold_sigma=threshold)
@@ -169,9 +187,12 @@ class TestRFIDetectorOrdering:
         # RFI fraca
         power[75:76, 35] *= 20
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         detector = RFIDetector(threshold_sigma=3.0)
         events = detector.detect(tod)
@@ -188,10 +209,13 @@ class TestRFIDetectorInput:
         """Levanta erro se 'power' não está no dataset."""
         time = np.arange(10)
         freq = np.linspace(1e9, 2e9, 5)
-        
-        tod = xr.Dataset({
-            'wrong_name': (('time', 'frequency'), np.ones((10, 5))),
-        }, coords={'time': time, 'frequency': freq})
+
+        tod = xr.Dataset(
+            {
+                "wrong_name": (("time", "frequency"), np.ones((10, 5))),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         detector = RFIDetector()
         with pytest.raises(KeyError, match="power"):
@@ -200,10 +224,13 @@ class TestRFIDetectorInput:
     def test_wrong_dimensions_raises(self):
         """Levanta erro se power não é 2D."""
         time = np.arange(10)
-        
-        tod = xr.Dataset({
-            'power': (('time',), np.ones(10)),
-        }, coords={'time': time})
+
+        tod = xr.Dataset(
+            {
+                "power": (("time",), np.ones(10)),
+            },
+            coords={"time": time},
+        )
 
         detector = RFIDetector()
         with pytest.raises(ValueError, match="2D"):
@@ -215,9 +242,12 @@ class TestRFIDetectorInput:
         freq = np.arange(0)
         power = np.empty((0, 0))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         detector = RFIDetector()
         # Deve retornar lista vazia sem levanta erro
@@ -238,9 +268,12 @@ class TestRFIDetectorReferenceSpectrum:
         # Espectro de referência customizado (aproximadamente a média)
         reference = np.mean(power, axis=0)
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         detector = RFIDetector(threshold_sigma=3.0)
         events = detector.detect(tod, reference_spectrum=reference)
@@ -256,9 +289,12 @@ class TestRFIDetectorReferenceSpectrum:
 
         reference = np.ones(10)
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         detector = RFIDetector(threshold_sigma=3.0)
         events = detector.detect(tod, reference_spectrum=reference)
@@ -275,9 +311,12 @@ class TestRFIDetectorEdgeCases:
         freq = np.linspace(1e9, 2e9, 10)
         power = np.ones((1, 10)) * 2.0
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         detector = RFIDetector(threshold_sigma=3.0)
         events = detector.detect(tod)
@@ -291,9 +330,12 @@ class TestRFIDetectorEdgeCases:
         freq = np.array([1e9])
         power = np.random.normal(1.0, 0.1, (10, 1))
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         detector = RFIDetector()
         events = detector.detect(tod)
@@ -306,9 +348,12 @@ class TestRFIDetectorEdgeCases:
         freq = np.linspace(1e9, 2e9, 5)
         power = np.ones((10, 5))  # Completamente uniforme
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         detector = RFIDetector()
         events = detector.detect(tod)
@@ -324,30 +369,33 @@ class TestRFIDetectorIntegration:
         # Setup realista
         n_time = 1000
         n_freq = 100
-        
+
         time = np.arange(n_time)
         freq = np.linspace(1.4e9, 1.8e9, n_freq)  # L-band
-        
+
         # Dados com ruído gaussiano
         power = np.random.normal(1.0, 0.1, (n_time, n_freq))
-        
+
         # RFI #1: RFI broadband contínua em parte do tempo
         power[100:200, 40:60] *= 5
-        
+
         # RFI #2: RFI narrowband pontual
         power[500:510, 70] *= 50
-        
+
         # RFI #3: RFI intermitente
         power[600::100, 80:85] *= 15
-        
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
-        
+
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
+
         # Detecção com threshold sensível
         detector = RFIDetector(threshold_sigma=3.0)
         events = detector.detect(tod)
-        
+
         # Validações
         assert len(events) > 0
         assert all(e.severity > 3.0 for e in events)
@@ -360,9 +408,12 @@ class TestRFIDetectorIntegration:
         power = np.random.normal(1.0, 0.1, (20, 10))
         power[10, 5] *= 50
 
-        tod = xr.Dataset({
-            'power': (('time', 'frequency'), power),
-        }, coords={'time': time, 'frequency': freq})
+        tod = xr.Dataset(
+            {
+                "power": (("time", "frequency"), power),
+            },
+            coords={"time": time, "frequency": freq},
+        )
 
         detector1 = RFIDetector(threshold_sigma=3.0)
         detector2 = RFIDetector(threshold_sigma=5.0)

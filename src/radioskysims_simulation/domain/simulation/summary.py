@@ -13,7 +13,6 @@ Last modified: 2026-08-03
 from __future__ import annotations
 
 import json
-import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -24,8 +23,6 @@ if TYPE_CHECKING:
     from radioskysims_core.domain.common import FrequencyRange, Observer, TimeRange
 
 SUMMARY_VERSION = "1.0"
-
-_LOGGER = logging.getLogger(__name__)
 
 # Tipos canônicos de fonte. Arquivos antigos podem trazer a coord
 # ``source_type`` truncada (ex.: dtype ``<U9`` → "localsource" vira

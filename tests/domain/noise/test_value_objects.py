@@ -145,7 +145,7 @@ class TestBandwidth:
         """String com formatação apropriada."""
         bw_mhz = Bandwidth(1e6)
         bw_ghz = Bandwidth(1e9)
-        
+
         assert "MHz" in str(bw_mhz)
         assert "GHz" in str(bw_ghz)
 
@@ -184,6 +184,6 @@ class TestIntegrationTime:
         """String com formatação apropriada."""
         t_sec = IntegrationTime(1.0)
         t_ms = IntegrationTime(0.001)
-        
+
         assert "s" in str(t_sec)
         assert "ms" in str(t_ms)
