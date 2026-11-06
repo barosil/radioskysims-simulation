@@ -5,14 +5,16 @@ Copyright BINGO Collaboration
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from radioskysims_beam.bootstrap.builders import _load_beam_from_csv
-from radioskysims_core.application.adapters.external_geometry import SkyfieldGeometryProvider
+from radioskysims_beam.domain.beam import Beam
 from radioskysims_core.bootstrap.builders import build_database, build_logging
 from radioskysims_core.config.config_loader import build_radiotelescope_from_settings, load_config
 from radioskysims_core.domain.common import FrequencyRange
+from radioskysims_core.infrastructure.external_geometry import SkyfieldGeometryProvider
 from radioskysims_core.infrastructure.tracks import TrackFactory
 from radioskysims_core.skyfield_loader import get_skyfield_dir
 from radioskysims_radiotelescope.bootstrap.builders import build_configuration
@@ -43,6 +45,23 @@ from radioskysims_simulation.application.services.tod_orchestrator import TODOrc
 from radioskysims_simulation.domain.tod import TODSimulator
 from radioskysims_simulation.infrastructure.db.simulation_repository import SimulationRepository
 from radioskysims_simulation.infrastructure.skymap.tod_projector import HealpySkyMapTODProjector
+
+
+def _analytical_beam_factory(profile: str, width_deg: float) -> Beam:
+    """Factory de beam analítico (gaussiano, etc.) para DI no SimulationService."""
+    from radioskysims_beam.infrastructure.beams.loaders.analytical import (
+        AnalyticalBeamLoader,
+        BeamProfile,
+    )
+
+    loader = AnalyticalBeamLoader(
+        beam_profile=BeamProfile(profile),
+        sigma=width_deg,
+        frequency=1000.0,  # MHz placeholder — interpolado depois
+        angular_range=(-90.0, 90.0),
+        angular_resolution=1.0,
+    )
+    return loader.load()
 
 
 def build_skymap_components(
@@ -137,6 +156,8 @@ def build_services(
     tod_simulator: TODSimulator,
     satellite_logger: Any,
     simulation_logger: Any,
+    track_factory: TrackFactory | None = None,
+    analytical_beam_factory: Callable[[str, float], Beam] | None = None,
     source_assembler: Any | None = None,
 ) -> dict[str, object]:
     """
@@ -159,6 +180,8 @@ def build_services(
         tod_simulator=tod_simulator,
         telescope_loader=(build_radiotelescope_from_settings),
         beam_loader_factory=(_load_beam_from_csv),
+        analytical_beam_factory=analytical_beam_factory,
+        track_factory=track_factory,
         source_assembler=source_assembler,
         logger=simulation_logger,
     )
@@ -274,6 +297,8 @@ def build_simulation_context_dependencies(
         tod_simulator=(domain_components["tod_simulator"]),
         satellite_logger=(loggers["satellite_logger"]),
         simulation_logger=(loggers["simulation_logger"]),
+        track_factory=(domain_components["track_factory"]),
+        analytical_beam_factory=_analytical_beam_factory,
         source_assembler=(source_assembler),
     )
 

@@ -13,13 +13,10 @@ from radioskysims_core.domain.common import (
     Observer,
     TimeRange,
 )
-from radioskysims_core.domain.geometry import compute_pointing_track
+from radioskysims_core.domain.geometry import GeometryProvider, compute_pointing_track
 
 if TYPE_CHECKING:
-    from radioskysims_core.application.adapters.external_geometry import (
-        SkyfieldGeometryProvider,
-    )
-    from radioskysims_core.infrastructure.tracks import TrackFactory
+    from radioskysims_core.application.ports.track_factory_port import TrackFactoryPort
 
 from radioskysims_sources.application.ports.satellite import SatelliteRepositoryPort
 from radioskysims_sources.application.services.catalog_services import (
@@ -120,8 +117,8 @@ class SimulationContext:
     satellite_repository: SatelliteRepositoryPort
     signal_repository: SignalRepositoryPort
 
-    track_factory: TrackFactory
-    geometry: SkyfieldGeometryProvider
+    track_factory: TrackFactoryPort
+    geometry: GeometryProvider
     signal_factory: SignalFactory
     tod_simulator: TODSimulator
 
@@ -620,11 +617,15 @@ class SimOrchestrator:
 
         return self._ctx.time_range
 
-    @staticmethod
     def _resolve_antenna_config(
+        self,
         antenna: Any,
-    ) -> tuple[Any, Any, Any, Any, Any]:
+    ) -> tuple[Any, Any, Any, Any, Any, Any, Any]:
         """Resolve beam, backend, num_channels e pointing de uma antena.
+
+        O beam é resolvido pelo :class:`SimulationService` (que recebe as
+        factories de beam via DI — TD-001); o orquestrador não importa loaders
+        concretos de infrastructure.
 
         Args:
             antenna: Objeto Antenna do RadiotelescopeSpec.
@@ -633,31 +634,11 @@ class SimOrchestrator:
             tuple: (beam, backend, num_channels, pointing_ra_deg,
                     pointing_dec_deg, pointing_alt_deg, pointing_az_deg)
         """
-        from radioskysims_beam.infrastructure.beams.loaders.analytical import (
-            AnalyticalBeamLoader,
-            BeamProfile,
-        )
-        from radioskysims_beam.infrastructure.beams.loaders.csv import CSVBeamLoader
-
         backend = getattr(antenna, "backend", None)
         pointing = getattr(antenna, "pointing", None)
         num_channels = getattr(backend, "num_channels", None) if backend else None
 
-        beam = None
-        beam_spec = getattr(antenna, "beam", None)
-        if beam_spec is not None:
-            if beam_spec.beam_pattern_file is not None:
-                beam = CSVBeamLoader(file=beam_spec.beam_pattern_file).load()
-            elif beam_spec.profile is not None:
-                width_deg = beam_spec.beam_width_deg or 10.0
-                loader = AnalyticalBeamLoader(
-                    beam_profile=BeamProfile(beam_spec.profile),
-                    sigma=width_deg,
-                    frequency=1000.0,
-                    angular_range=(-90.0, 90.0),
-                    angular_resolution=1.0,
-                )
-                beam = loader.load()
+        beam = self._ctx.simulation_service._resolve_beam(antenna)
 
         _ra_deg = getattr(pointing, "ra_deg", None)
         _dec_deg = getattr(pointing, "dec_deg", None)

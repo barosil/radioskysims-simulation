@@ -11,9 +11,9 @@ import numpy as np
 import xarray as xr
 from dask import delayed
 from radioskysims_beam.domain.beam import Beam, BeamOps
+from radioskysims_core.application.ports.track_factory_port import TrackFactoryPort
 from radioskysims_core.domain.common import FrequencyRange, Observer, TimeRange
 from radioskysims_core.domain.geometry import GeometryProvider
-from radioskysims_core.infrastructure.tracks import TrackFactory
 from radioskysims_radiotelescope.domain.radiotelescope.antenna.models import Antenna
 from radioskysims_radiotelescope.domain.radiotelescope.specs import RadiotelescopeSpec
 from radioskysims_sources.application.services.satellite_service import SatelliteService
@@ -68,6 +68,8 @@ class SimulationService:
         *,
         telescope_loader: Callable[[str], RadiotelescopeSpec] | None = None,
         beam_loader_factory: Callable[[str], Beam] | None = None,
+        analytical_beam_factory: Callable[[str, float], Beam] | None = None,
+        track_factory: TrackFactoryPort | None = None,
         source_assembler: SourceAssembler | None = None,
         logger: Any | None = None,
     ) -> None:
@@ -77,6 +79,8 @@ class SimulationService:
         self._tod_simulator = tod_simulator
         self._telescope_loader = telescope_loader
         self._beam_loader_factory = beam_loader_factory
+        self._analytical_beam_factory = analytical_beam_factory
+        self._track_factory = track_factory
         self._source_assembler = source_assembler
         self._logger = logger or _FallbackStructuredLogger()
 
@@ -90,22 +94,18 @@ class SimulationService:
         if beam_spec.beam_pattern_file is not None:
             return self._load_beam_from_file(beam_spec.beam_pattern_file)
 
-        # Beam analítico (gaussiano, etc.)
+        # Beam analítico (gaussiano, etc.) — factory injetada pelo composition
+        # root (TD-001): application não importa o loader concreto.
         if beam_spec.profile is not None:
-            from radioskysims_beam.infrastructure.beams.loaders.analytical import (
-                AnalyticalBeamLoader,
-                BeamProfile,
-            )
+            if self._analytical_beam_factory is None:
+                msg = (
+                    "analytical_beam_factory não injetado no SimulationService. "
+                    "Use build_services/build_simulation_context_dependencies."
+                )
+                raise RuntimeError(msg)
 
             width_deg = beam_spec.beam_width_deg or 10.0
-            loader = AnalyticalBeamLoader(
-                beam_profile=BeamProfile(beam_spec.profile),
-                sigma=width_deg,
-                frequency=1000.0,  # MHz placeholder — interpolado depois
-                angular_range=(-90.0, 90.0),
-                angular_resolution=1.0,
-            )
-            return loader.load()
+            return self._analytical_beam_factory(beam_spec.profile, width_deg)
 
         return None
 
@@ -768,8 +768,14 @@ class SimulationService:
             }
         }
 
-        track_factory = TrackFactory()
-        tracks = track_factory.build(sat_blocks)
+        if self._track_factory is None:
+            msg = (
+                "track_factory não injetado no SimulationService. "
+                "Use build_services/build_simulation_context_dependencies."
+            )
+            raise RuntimeError(msg)
+
+        tracks = self._track_factory.build(sat_blocks)
 
         geometry_ds = self._compute_geometry(tracks.dataset, observer, sat_blocks)
         geometry_ds = self._interpolate_geometry(geometry_ds, time_range)
