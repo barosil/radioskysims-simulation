@@ -9,11 +9,11 @@ from pathlib import Path
 from typing import Any
 
 from radioskysims_beam.bootstrap.builders import _load_beam_from_csv
+from radioskysims_core.application.adapters.external_geometry import SkyfieldGeometryProvider
 from radioskysims_core.bootstrap.builders import build_database, build_logging
 from radioskysims_core.config.config_loader import build_radiotelescope_from_settings, load_config
 from radioskysims_core.domain.common import FrequencyRange
-from radioskysims_core.domain.geometry import SkyfieldGeometryProvider
-from radioskysims_core.domain.tracks.factory import TrackFactory
+from radioskysims_core.infrastructure.tracks import TrackFactory
 from radioskysims_core.skyfield_loader import get_skyfield_dir
 from radioskysims_radiotelescope.bootstrap.builders import build_configuration
 from radioskysims_skymap.infrastructure.skymap.providers.pysm import PySMSkyMapGeneratorAdapter

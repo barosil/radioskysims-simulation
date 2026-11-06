@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import xarray as xr
@@ -13,11 +13,14 @@ from radioskysims_core.domain.common import (
     Observer,
     TimeRange,
 )
-from radioskysims_core.domain.geometry import (
-    SkyfieldGeometryProvider,
-    compute_pointing_track,
-)
-from radioskysims_core.domain.tracks.factory import TrackFactory
+from radioskysims_core.domain.geometry import compute_pointing_track
+
+if TYPE_CHECKING:
+    from radioskysims_core.application.adapters.external_geometry import (
+        SkyfieldGeometryProvider,
+    )
+    from radioskysims_core.infrastructure.tracks import TrackFactory
+
 from radioskysims_sources.application.ports.satellite import SatelliteRepositoryPort
 from radioskysims_sources.application.services.catalog_services import (
     RadioSourceCatalogService,

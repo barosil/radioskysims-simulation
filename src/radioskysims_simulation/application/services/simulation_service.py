@@ -13,7 +13,7 @@ from dask import delayed
 from radioskysims_beam.domain.beam import Beam, BeamOps
 from radioskysims_core.domain.common import FrequencyRange, Observer, TimeRange
 from radioskysims_core.domain.geometry import GeometryProvider
-from radioskysims_core.domain.tracks.factory import TrackFactory
+from radioskysims_core.infrastructure.tracks import TrackFactory
 from radioskysims_radiotelescope.domain.radiotelescope.antenna.models import Antenna
 from radioskysims_radiotelescope.domain.radiotelescope.specs import RadiotelescopeSpec
 from radioskysims_sources.application.services.satellite_service import SatelliteService
