@@ -14,20 +14,29 @@ Last modified: 2026-11-05
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Sequence
-from typing import Generic, TypeVar
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
+import xarray as xr
+from radioskysims_core.domain.common import FrequencyRange, TimeRange
 from radioskysims_sources.domain.signal_source import SignalSource
 
 from radioskysims_simulation.application.processing_resources import (
     ProcessingResources,
 )
-from radioskysims_simulation.domain.simulation import SimulationResult
-
-T = TypeVar("T")
+from radioskysims_simulation.domain.simulation import Simulation
 
 
-class ProcessorPort(ABC, Generic[T]):
+@dataclass
+class SourceBatch:
+    """Lote de fontes para processamento seguro em memória (contrato do port)."""
+
+    sources: list[SignalSource]
+    estimated_mb: float
+    batch_index: int
+
+
+class ProcessorPort(ABC):
     """
     Port abstrato para um processador consciente de recursos.
 
@@ -90,7 +99,13 @@ class ProcessorPort(ABC, Generic[T]):
         ...
 
     @abstractmethod
-    def partition_sources(self, sources: Sequence[SignalSource]) -> list[list[SignalSource]]:
+    def partition_sources(
+        self,
+        sources: Sequence[SignalSource],
+        time_range: TimeRange,
+        frequency_range: FrequencyRange | None = None,
+        num_channels: int | None = None,
+    ) -> list[SourceBatch]:
         """
         Divide fontes em batches respeitando limites de memória.
 
@@ -98,34 +113,48 @@ class ProcessorPort(ABC, Generic[T]):
         ----------
         sources : Sequence[SignalSource]
             Lista de fontes a processar.
+        time_range : TimeRange
+            Intervalo temporal.
+        frequency_range : FrequencyRange | None
+            Range de frequências.
+        num_channels : int | None
+            Número de canais.
 
         Returns
         -------
-        list[list[SignalSource]]
-            Batches de fontes (cada sublist cabe na memória).
+        list[SourceBatch]
+            Batches de fontes com estimativa de memória.
         """
         ...
 
     @abstractmethod
-    def run_batch(
+    def run_batches(
         self,
-        batch: Iterable[T],
-        processor_fn: Callable[[T], SimulationResult],
-    ) -> list[SimulationResult]:
+        batches: list[SourceBatch],
+        simulation_factory: Callable[[list[SignalSource]], Simulation],
+        *,
+        batch_output_dir: str | None = None,
+        part_engine: str = "h5netcdf",
+    ) -> xr.Dataset:
         """
-        Executa um batch de itens usando scheduler.
+        Executa os batches sequencialmente e consolida os resultados.
 
         Parameters
         ----------
-        batch : Iterable[T]
-            Items a processar.
-        processor_fn : Callable[[T], SimulationResult]
-            Função que processa um único item.
+        batches : list[SourceBatch]
+            Batches de fontes a processar.
+        simulation_factory : Callable[[list[SignalSource]], Simulation]
+            Função que recebe uma lista de fontes e retorna uma
+            :class:`Simulation` pronta para executar.
+        batch_output_dir : str | None
+            Diretório opcional para streaming por batches (grava parcial).
+        part_engine : str
+            Backend xarray para os arquivos parciais (padrão "h5netcdf").
 
         Returns
         -------
-        list[SimulationResult]
-            Resultados processados (mesma ordem que batch).
+        xr.Dataset
+            Dataset consolidado com todas as fontes processadas.
         """
         ...
 

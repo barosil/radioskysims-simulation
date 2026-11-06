@@ -12,23 +12,24 @@ Last modified: 2026-11-05
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Sequence
-from typing import Any, Generic, TypeVar
+from collections.abc import Callable, Sequence
 
+import xarray as xr
+from radioskysims_core.domain.common import FrequencyRange, TimeRange
 from radioskysims_sources.domain.signal_source import SignalSource
+
 from radioskysims_simulation.application.ports.processing import (
     ProcessingResources,
     ProcessorPort,
+    SourceBatch,
 )
-from radioskysims_simulation.domain.simulation import SimulationResult
+from radioskysims_simulation.domain.simulation import Simulation
 from radioskysims_simulation.infrastructure.processing.resource_processor import (
     ResourceAwareProcessor as _ResourceAwareProcessorImpl,
 )
 
-T = TypeVar("T")
 
-
-class ResourceAwareProcessorAdapter(ProcessorPort[SimulationResult], Generic[T]):
+class ResourceAwareProcessorAdapter(ProcessorPort):
     """
     Adapter que faz ResourceAwareProcessor implementar ProcessorPort.
 
@@ -82,22 +83,39 @@ class ResourceAwareProcessorAdapter(ProcessorPort[SimulationResult], Generic[T])
         return self._processor.batch_budget_mb(single_source_mb)
 
     def partition_sources(
-        self, sources: Sequence[SignalSource]
-    ) -> list[list[SignalSource]]:
-        """Divide fontes em batches."""
-        return self._processor.partition_sources(sources)
-
-    def run_batch(
         self,
-        batch: Iterable[T],
-        processor_fn: Callable[[T], SimulationResult],
-    ) -> list[SimulationResult]:
-        """Executa batch com scheduler."""
-        return self._processor.run_batch(batch, processor_fn)
+        sources: Sequence[SignalSource],
+        time_range: TimeRange,
+        frequency_range: FrequencyRange | None = None,
+        num_channels: int | None = None,
+    ) -> list[SourceBatch]:
+        """Divide fontes em batches."""
+        return self._processor.partition_sources(
+            sources=sources,
+            time_range=time_range,
+            frequency_range=frequency_range,
+            num_channels=num_channels,
+        )
+
+    def run_batches(
+        self,
+        batches: list[SourceBatch],
+        simulation_factory: Callable[[list[SignalSource]], Simulation],
+        *,
+        batch_output_dir: str | None = None,
+        part_engine: str = "h5netcdf",
+    ) -> xr.Dataset:
+        """Executa os batches e consolida resultados."""
+        return self._processor.run_batches(
+            batches,
+            simulation_factory,
+            batch_output_dir=batch_output_dir,
+            part_engine=part_engine,
+        )
 
     def close(self) -> None:
-        """Limpa recursos."""
-        self._processor.close()
+        """Limpa recursos (encerra cluster/cliente dask)."""
+        self._processor.shutdown()
 
 
 __all__ = ["ResourceAwareProcessorAdapter"]

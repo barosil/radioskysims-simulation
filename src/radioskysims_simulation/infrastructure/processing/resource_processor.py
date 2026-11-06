@@ -49,6 +49,7 @@ from radioskysims_core.domain.common import FrequencyRange, TimeRange
 from radioskysims_core.logging_config import get_logger
 from radioskysims_sources.domain.signal_source import SignalSource
 
+from radioskysims_simulation.application.ports.processing import SourceBatch
 from radioskysims_simulation.application.processing_resources import (
     _DEFAULT_PARALLEL_WORKERS,
     MemoryEstimator,
@@ -68,15 +69,6 @@ class ResourceLimitError(RuntimeError):
 
 
 T = TypeVar("T")
-
-
-@dataclass
-class SourceBatch:
-    """Lote de fontes para processamento seguro em memória."""
-
-    sources: list[SignalSource]
-    estimated_mb: float
-    batch_index: int
 
 
 @dataclass
