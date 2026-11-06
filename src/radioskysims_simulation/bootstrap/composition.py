@@ -71,13 +71,18 @@ def create_sim_orchestrator(
         telescope=telescope, settings_file=settings_file
     )
 
-    # Criar ProcessorPort via DI container
+    # ProcessorPort via DI container (composition root). A factory fica sempre
+    # injetada; processor_config cria uma instância adiantada (eager).
+    container = get_container()
     processor = None
     if processor_config is not None:
-        container = get_container()
         processor = container.get_processor(**processor_config)
 
-    return SimOrchestrator(context, processor=processor)
+    return SimOrchestrator(
+        context,
+        processor=processor,
+        processor_factory=container.get_processor,
+    )
 
 
 __all__ = [

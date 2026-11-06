@@ -38,7 +38,6 @@ from radioskysims_sources.domain.signal import (
 )
 
 from radioskysims_simulation.application.ports.processing import (
-    ProcessingResources,
     ProcessorPort,
 )
 from radioskysims_simulation.application.services.simulation_service import (
@@ -158,6 +157,7 @@ class SimOrchestrator:
         context: SimulationContext,
         *,
         processor: ProcessorPort | None = None,
+        processor_factory: Callable[..., ProcessorPort] | None = None,
     ) -> None:
         self._ctx = context
         # Corte de fluxo (Jy) para o catálogo de rádio — vem do settings.toml
@@ -186,9 +186,10 @@ class SimOrchestrator:
 
         self._logger = context.logger or _NoopLogger()
 
-        # Processor opcional injetado pelo usuário/composition root.
-        # Quando None, o caminho legado pode criar um processor sob demanda.
+        # Processor opcional injetado pelo usuário; factory do composition root
+        # (bootstrap/dependencies.py) cria sob demanda quando não injetado.
         self._processor: ProcessorPort | None = processor
+        self._processor_factory = processor_factory
         self._neutral_hydrogen_map_generator = getattr(
             context,
             "neutral_hydrogen_map_generator",
@@ -410,35 +411,25 @@ class SimOrchestrator:
         dask_processes: bool | None,
         processor_diagnostics: bool,
     ) -> ProcessorPort:
-        """Retorna o Processor injetado ou cria um automaticamente.
-
-        Quando um ``ProcessorPort`` foi fornecido ao construtor,
-        ele é reutilizado. Caso contrário, um processor é criado sob demanda.
-
-        NOTE (T1.6): Este método será removido quando bootstrap/dependencies.py
-        injetar ProcessorPort via DI container. Por enquanto, mantido para
-        compatibilidade com código legado.
-        """
+        """Retorna o Processor injetado ou cria via factory do composition root."""
         if self._processor is not None:
             return self._processor
 
-        # NOTE (T1.6): ResourceAwareProcessor é um adapter concreto de
-        # infraestrutura; o composition root (bootstrap/dependencies.py) injeta
-        # o ProcessorPort via DI. Este fallback local mantém a criação sob
-        # demanda para compatibilidade com código legado.
-        from radioskysims_simulation.infrastructure.processing.resource_processor import (
-            ResourceAwareProcessor,
-        )
+        # A application não importa o adapter concreto (TD-001): a factory é
+        # injetada pelo composition root (bootstrap/dependencies.py).
+        if self._processor_factory is None:
+            msg = (
+                "Processor não injetado e nenhuma factory configurada. Use "
+                "SimOrchestrator(..., processor=...) ou "
+                "processor_factory=get_container().get_processor."
+            )
+            raise RuntimeError(msg)
 
-        resources = ProcessingResources.detect(
+        processor = self._processor_factory(
+            max_batch_mb=max_batch_mb,
             cpu_count=cpu_count,
             memory_mb=memory_mb,
-        )
-
-        processor = ResourceAwareProcessor(
-            resources=resources,
-            max_batch_mb=max_batch_mb,
-            dask_scheduler=dask_scheduler or "threads",
+            dask_scheduler=dask_scheduler,
             dask_processes=dask_processes,
             diagnostics_enabled=processor_diagnostics,
             logger=self._logger,

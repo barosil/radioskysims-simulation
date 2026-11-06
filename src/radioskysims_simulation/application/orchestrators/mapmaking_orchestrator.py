@@ -20,6 +20,9 @@ Last modified: 2026-09-03
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 import xarray as xr
 
 from radioskysims_simulation.application.services.mapmaking_service import (
@@ -28,6 +31,26 @@ from radioskysims_simulation.application.services.mapmaking_service import (
 )
 
 __all__ = ["MapMakingOrchestrator"]
+
+# Factory do mapmaker injetada pelo composition root (TD-001).
+_DEFAULT_MAPMAKER_FACTORY: Callable[[], Any] | None = None
+
+
+def set_default_mapmaker_factory(factory: Callable[[], Any] | None) -> None:
+    """Registra a factory do mapmaker binned (bootstrap)."""
+    global _DEFAULT_MAPMAKER_FACTORY
+    _DEFAULT_MAPMAKER_FACTORY = factory
+
+
+def _mapmaker() -> Any:
+    """Retorna o mapmaker injetado ou falha com erro claro."""
+    if _DEFAULT_MAPMAKER_FACTORY is None:
+        msg = (
+            "Mapmaker não configurado: chame set_default_mapmaker_factory() "
+            "no composition root."
+        )
+        raise RuntimeError(msg)
+    return _DEFAULT_MAPMAKER_FACTORY()
 
 
 class MapMakingOrchestrator:
@@ -65,11 +88,8 @@ class MapMakingOrchestrator:
         from radioskysims_simulation.application.mapmaking.generate_from_tod import (
             GenerateSkyMapsFromTODUseCase,
         )
-        from radioskysims_simulation.infrastructure.mapmaking.healpy_binned import (
-            HealpyBinnedMapMakerAdapter,
-        )
 
-        generator = GenerateSkyMapsFromTODUseCase(mapmaker=HealpyBinnedMapMakerAdapter())
+        generator = GenerateSkyMapsFromTODUseCase(mapmaker=_mapmaker())
         return cls.from_generator(generator)
 
     # ──────────────────────────────────────────────────────────

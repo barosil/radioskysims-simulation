@@ -65,7 +65,13 @@ def test_repr():
     assert "MapMakingOrchestrator" in repr(orch)
 
 
-def test_default_monta_com_mapmaker_binned():
+def test_default_monta_com_mapmaker_binned(monkeypatch):
+    from radioskysims_simulation.application.orchestrators import mapmaking_orchestrator as mm_mod
+    from radioskysims_simulation.infrastructure.mapmaking.healpy_binned import (
+        HealpyBinnedMapMakerAdapter,
+    )
+
+    monkeypatch.setattr(mm_mod, "_DEFAULT_MAPMAKER_FACTORY", HealpyBinnedMapMakerAdapter)
     orch = MapMakingOrchestrator.default()
     assert isinstance(orch, MapMakingOrchestrator)
     assert "MapMakingOrchestrator" in repr(orch)
