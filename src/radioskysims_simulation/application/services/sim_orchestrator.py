@@ -13,7 +13,7 @@ from radioskysims_core.domain.common import (
     Observer,
     TimeRange,
 )
-from radioskysims_core.domain.geometry import GeometryProvider, compute_pointing_track
+from radioskysims_core.domain.geometry import GeometryProvider
 
 if TYPE_CHECKING:
     from radioskysims_core.application.ports.track_factory_port import TrackFactoryPort
@@ -28,10 +28,6 @@ from radioskysims_sources.application.services.local_sources_service import (
 from radioskysims_sources.application.services.satellite_service import (
     SatelliteService,
 )
-from radioskysims_sources.domain.radiosources.continuum import (
-    Galaxy,
-    NeutralHydrogen,
-)
 from radioskysims_sources.domain.signal import (
     SignalFactory,
     SignalRepositoryPort,
@@ -39,6 +35,9 @@ from radioskysims_sources.domain.signal import (
 
 from radioskysims_simulation.application.ports.processing import (
     ProcessorPort,
+)
+from radioskysims_simulation.application.services.diffuse_tod_runner import (
+    DiffuseTODRunner,
 )
 from radioskysims_simulation.application.services.simulation_service import (
     SimulationService,
@@ -170,17 +169,9 @@ class SimOrchestrator:
 
         self._tod_orchestrator = context.tod_orchestrator
 
-        self._galaxy_map_generator = context.galaxy_map_generator
-
         self._skymap_repository = context.skymap_repository
 
         self._skymap_tod_projector = context.skymap_tod_projector
-        # Cache temporário dos mapas galácticos durante uma execução.
-        #
-        # O céu difuso não depende da antena. Portanto, os mapas PySM3
-        # devem ser gerados apenas uma vez por SimOrchestrator.run() e
-        # reutilizados pelos diferentes pointings/beams.
-        self._galaxy_maps_cache: tuple[Any, ...] | None = None
 
         self._config_loader = context.config_loader
 
@@ -190,186 +181,25 @@ class SimOrchestrator:
         # (bootstrap/dependencies.py) cria sob demanda quando não injetado.
         self._processor: ProcessorPort | None = processor
         self._processor_factory = processor_factory
-        self._neutral_hydrogen_map_generator = getattr(
-            context,
-            "neutral_hydrogen_map_generator",
-            None,
-        )
 
-        self._cosmology_parameters = getattr(
-            context,
-            "cosmology_parameters",
-            None,
-        )
-
-        self._neutral_hydrogen_maps_cache: tuple[Any, ...] | None = None
-
-    def _generate_galaxy_maps(
-        self,
-        *,
-        nside: int,
-        persist_skymaps: bool,
-        skymap_overwrite: bool,
-    ) -> tuple[Any, ...]:
-        """
-        Gera os mapas físicos da Via Láctea.
-
-        Esta operação é independente da antena e deve ocorrer apenas
-        uma vez por execução do SimOrchestrator.
-
-        Parameters
-        ----------
-        nside:
-            Resolução HEALPix.
-        persist_skymaps:
-            Persiste os mapas gerados no repository HDF5.
-        skymap_overwrite:
-            Permite sobrescrever mapas já persistidos.
-
-        Returns
-        -------
-        tuple
-            Mapas HEALPix da Galaxy, um para cada bin de frequência.
-        """
-
-        if self._galaxy_map_generator is None:
-            msg = "Galaxy map generator is not configured."
-            raise RuntimeError(msg)
-
-        galaxy = Galaxy()
-
-        galaxy_map_set = self._galaxy_map_generator.execute(
-            source=galaxy,
-            frequency_range=self._ctx.frequency_range,
-            nside=nside,
-            persist=persist_skymaps,
-            overwrite=skymap_overwrite,
-        )
-
-        maps = tuple(galaxy_map_set.maps)
-
-        self._logger.info(
-            "galaxy_maps_generated",
-            n_maps=len(maps),
-            nside=nside,
-            persisted=persist_skymaps,
-        )
-
-        return maps
-
-    def _run_galaxy_maps_for_antenna(
-        self,
-        *,
-        maps: tuple[Any, ...],
-        time_range: TimeRange,
-        alt_deg: float | None,
-        az_deg: float | None,
-        use_beam: bool = True,
-    ) -> xr.Dataset:
-        """
-        Projeta mapas galácticos previamente gerados no pointing
-        de uma antena específica.
-
-        Ao contrário de ``_generate_galaxy_maps``, esta operação
-        depende da antena e portanto é executada para cada pointing.
-        """
-
-        if self._tod_orchestrator is None:
-            msg = "TODOrchestrator is not configured."
-            raise RuntimeError(msg)
-
-        if self._skymap_tod_projector is None:
-            msg = "SkyMap TOD projector is not configured."
-            raise RuntimeError(msg)
-
-        if alt_deg is None or az_deg is None:
-            msg = "Galaxy TOD requires antenna Alt/Az pointing."
-            raise ValueError(msg)
-
-        if not maps:
-            msg = "Galaxy TOD requires at least one SkyMap."
-            raise ValueError(msg)
-
-        time_grid = _compute_time_grid(time_range)
-
-        pointing_track = compute_pointing_track(
-            observer=self._ctx.observer,
-            time_grid=time_grid,
-            alt_deg=alt_deg,
-            az_deg=az_deg,
-        )
-
-        galaxy_tod = self._tod_orchestrator.run_maps(
-            maps=maps,
-            pointing_track=pointing_track,
-            projector=self._skymap_tod_projector,
-            use_beam=use_beam,
-        )
-
-        self._logger.info(
-            "galaxy_tod_generated",
-            n_maps=len(maps),
-            pointing_alt=alt_deg,
-            pointing_az=az_deg,
-        )
-
-        return galaxy_tod
-
-    def _run_galaxy_maps_for_antenna(
-        self,
-        *,
-        maps: tuple[Any, ...],
-        time_range: TimeRange,
-        alt_deg: float | None,
-        az_deg: float | None,
-        use_beam: bool = True,
-    ) -> xr.Dataset:
-        """
-        Project previously generated Galaxy maps for one antenna.
-
-        Compatibility wrapper around the generic diffuse-map path.
-        """
-
-        return self._run_diffuse_maps_for_antenna(
-            maps=maps,
-            time_range=time_range,
-            alt_deg=alt_deg,
-            az_deg=az_deg,
-            use_beam=use_beam,
-            source_name="Galaxy",
-        )
-
-    def _run_galaxy_for_antenna(
-        self,
-        *,
-        time_range: TimeRange,
-        alt_deg: float | None,
-        az_deg: float | None,
-        nside: int,
-        persist_skymaps: bool,
-        skymap_overwrite: bool,
-        use_beam: bool = True,
-    ) -> xr.Dataset:
-        """
-        Compatibility wrapper for the Galaxy -> TOD workflow.
-
-        Galaxy maps are generated once per SimOrchestrator.run()
-        and reused for all antenna pointings.
-        """
-
-        if self._galaxy_maps_cache is None:
-            self._galaxy_maps_cache = self._generate_galaxy_maps(
-                nside=nside,
-                persist_skymaps=persist_skymaps,
-                skymap_overwrite=skymap_overwrite,
-            )
-
-        return self._run_galaxy_maps_for_antenna(
-            maps=self._galaxy_maps_cache,
-            time_range=time_range,
-            alt_deg=alt_deg,
-            az_deg=az_deg,
-            use_beam=use_beam,
+        # Runner de fontes difusas (Galáxia + HI) — SRP: a geração/projeção de
+        # mapas difusos foi extraída para DiffuseTODRunner.
+        self._diffuse_runner = DiffuseTODRunner(
+            ctx=context,
+            galaxy_map_generator=context.galaxy_map_generator,
+            neutral_hydrogen_map_generator=getattr(
+                context,
+                "neutral_hydrogen_map_generator",
+                None,
+            ),
+            cosmology_parameters=getattr(
+                context,
+                "cosmology_parameters",
+                None,
+            ),
+            tod_orchestrator=self._tod_orchestrator,
+            skymap_tod_projector=self._skymap_tod_projector,
+            logger=self._logger,
         )
 
     # ----------------------------------------------------------
@@ -647,6 +477,14 @@ class SimOrchestrator:
 
         return beam, backend, num_channels, _ra_deg, _dec_deg, _alt_deg, _az_deg
 
+    def _run_galaxy_for_antenna(self, **kwargs: Any) -> xr.Dataset:
+        """Fachada: delega a geração/projeção da Galáxia ao ``DiffuseTODRunner``."""
+        return self._diffuse_runner.run_galaxy_for_antenna(**kwargs)
+
+    def _run_neutral_hydrogen_for_antenna(self, **kwargs: Any) -> xr.Dataset:
+        """Fachada: delega a geração/projeção de HI ao ``DiffuseTODRunner``."""
+        return self._diffuse_runner.run_neutral_hydrogen_for_antenna(**kwargs)
+
     # ------------------------------------------------------------------
     # Execução de simulação
     # ------------------------------------------------------------------
@@ -856,8 +694,7 @@ class SimOrchestrator:
 
         # Cada execução possui seu próprio conjunto de mapas galácticos.
         # O cache existe apenas para reutilização entre antenas do mesmo run().
-        self._galaxy_maps_cache = None
-        self._neutral_hydrogen_maps_cache = None
+        self._diffuse_runner.reset_caches()
 
         # ----------------------------------------------------------
         # Cronômetro da simulação (bloco Computation do resumo)
@@ -1579,142 +1416,4 @@ class SimOrchestrator:
             sources=sources,
             satellites=list(satellites),
             time_range=time_range,
-        )
-
-    def _run_diffuse_maps_for_antenna(
-        self,
-        *,
-        maps: tuple[Any, ...],
-        time_range: TimeRange,
-        alt_deg: float | None,
-        az_deg: float | None,
-        use_beam: bool = True,
-        source_name: str = "diffuse",
-    ) -> xr.Dataset:
-        """
-        Project diffuse HEALPix maps into TOD for one antenna pointing.
-
-        This operation is source-agnostic. Galaxy, neutral hydrogen and
-        future diffuse components share the same map -> pointing -> TOD path.
-        """
-
-        if self._tod_orchestrator is None:
-            msg = "TODOrchestrator is not configured."
-            raise RuntimeError(msg)
-
-        if self._skymap_tod_projector is None:
-            msg = "SkyMap TOD projector is not configured."
-            raise RuntimeError(msg)
-
-        if alt_deg is None or az_deg is None:
-            msg = f"{source_name} TOD requires antenna Alt/Az pointing."
-            raise ValueError(msg)
-
-        if not maps:
-            msg = f"{source_name} TOD requires at least one SkyMap."
-            raise ValueError(msg)
-
-        time_grid = _compute_time_grid(time_range)
-
-        pointing_track = compute_pointing_track(
-            observer=self._ctx.observer,
-            time_grid=time_grid,
-            alt_deg=alt_deg,
-            az_deg=az_deg,
-        )
-
-        diffuse_tod = self._tod_orchestrator.run_maps(
-            maps=maps,
-            pointing_track=pointing_track,
-            projector=self._skymap_tod_projector,
-            use_beam=use_beam,
-        )
-
-        self._logger.info(
-            "diffuse_tod_generated",
-            source=source_name,
-            n_maps=len(maps),
-            pointing_alt=alt_deg,
-            pointing_az=az_deg,
-        )
-
-        return diffuse_tod
-
-    def _generate_neutral_hydrogen_maps(
-        self,
-        *,
-        nside: int,
-        seed: int | None = None,
-        persist_skymaps: bool = False,
-        skymap_overwrite: bool = False,
-    ) -> tuple[Any, ...]:
-        """
-        Gera os mapas cosmológicos de hidrogênio neutro.
-
-        Como os mapas não dependem da antena, eles podem ser
-        reutilizados pelos diferentes pointings da mesma execução.
-        """
-
-        if self._neutral_hydrogen_map_generator is None:
-            msg = "Neutral hydrogen map generator is not configured."
-            raise RuntimeError(msg)
-
-        if self._cosmology_parameters is None:
-            msg = "Cosmology parameters are not configured."
-            raise RuntimeError(msg)
-
-        source = NeutralHydrogen()
-
-        map_set = self._neutral_hydrogen_map_generator.execute(
-            source=source,
-            cosmology=self._cosmology_parameters,
-            frequency_range=self._ctx.frequency_range,
-            nside=nside,
-            seed=seed,
-            persist=persist_skymaps,
-            overwrite=skymap_overwrite,
-        )
-
-        maps = tuple(map_set.maps)
-
-        self._logger.info(
-            "neutral_hydrogen_maps_generated",
-            n_maps=len(maps),
-            nside=nside,
-            seed=seed,
-            persisted=persist_skymaps,
-        )
-        return maps
-
-    def _run_neutral_hydrogen_for_antenna(
-        self,
-        *,
-        time_range: TimeRange,
-        alt_deg: float | None,
-        az_deg: float | None,
-        nside: int,
-        seed: int | None = None,
-        persist_skymaps: bool = False,
-        skymap_overwrite: bool = False,
-        use_beam: bool = True,
-    ) -> xr.Dataset:
-        """
-        Gera/reutiliza mapas de HI e os projeta no pointing da antena.
-        """
-
-        if self._neutral_hydrogen_maps_cache is None:
-            self._neutral_hydrogen_maps_cache = self._generate_neutral_hydrogen_maps(
-                nside=nside,
-                seed=seed,
-                persist_skymaps=persist_skymaps,
-                skymap_overwrite=skymap_overwrite,
-            )
-
-        return self._run_diffuse_maps_for_antenna(
-            maps=self._neutral_hydrogen_maps_cache,
-            time_range=time_range,
-            alt_deg=alt_deg,
-            az_deg=az_deg,
-            use_beam=use_beam,
-            source_name="NeutralHydrogen",
         )
